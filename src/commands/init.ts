@@ -2,16 +2,20 @@ import { feature } from 'bun:bundle'
 import type { Command } from '../commands.js'
 import { maybeMarkProjectOnboardingComplete } from '../projectOnboardingState.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
+import {
+  LOCAL_INSTRUCTIONS_FILE,
+  PROJECT_INSTRUCTIONS_FILE,
+} from '../utils/instructionsFiles.js'
 
-const OLD_INIT_PROMPT = `Please analyze this codebase and create a CLAUDE.md file, which will be given to future instances of Shlomo Code to operate in this repository.
+const OLD_INIT_PROMPT = `Please analyze this codebase and create a ${PROJECT_INSTRUCTIONS_FILE} file, which will be given to future instances of Shlomo Code to operate in this repository.
 
 What to add:
 1. Commands that will be commonly used, such as how to build, lint, and run tests. Include the necessary commands to develop in this codebase, such as how to run a single test.
 2. High-level code architecture and structure so that future instances can be productive more quickly. Focus on the "big picture" architecture that requires reading multiple files to understand.
 
 Usage notes:
-- If there's already a CLAUDE.md, suggest improvements to it.
-- When you make the initial CLAUDE.md, do not repeat yourself and do not include obvious instructions like "Provide helpful error messages to users", "Write unit tests for all new utilities", "Never include sensitive information (API keys, tokens) in code or commits".
+- If there's already a ${PROJECT_INSTRUCTIONS_FILE}, suggest improvements to it.
+- When you make the initial ${PROJECT_INSTRUCTIONS_FILE}, do not repeat yourself and do not include obvious instructions like "Provide helpful error messages to users", "Write unit tests for all new utilities", "Never include sensitive information (API keys, tokens) in code or commits".
 - Avoid listing every component or file structure that can be easily discovered.
 - Don't include generic development practices.
 - If there are Cursor rules (in .cursor/rules/ or .cursorrules) or Copilot rules (in .github/copilot-instructions.md), make sure to include the important parts.
@@ -20,24 +24,24 @@ Usage notes:
 - Be sure to prefix the file with the following text:
 
 \`\`\`
-# CLAUDE.md
+# ${PROJECT_INSTRUCTIONS_FILE}
 
 This file provides guidance to Shlomo Code (claude.ai/code) when working with code in this repository.
 \`\`\``
 
-const NEW_INIT_PROMPT = `Set up a minimal CLAUDE.md (and optionally skills and hooks) for this repo. CLAUDE.md is loaded into every Shlomo Code session, so it must be concise — only include what Claude would get wrong without it.
+const NEW_INIT_PROMPT = `Set up a minimal ${PROJECT_INSTRUCTIONS_FILE} (and optionally skills and hooks) for this repo. ${PROJECT_INSTRUCTIONS_FILE} is loaded into every Shlomo Code session, so it must be concise — only include what Claude would get wrong without it.
 
 ## Phase 1: Ask what to set up
 
 Use AskUserQuestion to find out what the user wants:
 
-- "Which CLAUDE.md files should /init set up?"
-  Options: "Project CLAUDE.md" | "Personal CLAUDE.local.md" | "Both project + personal"
+- "Which ${PROJECT_INSTRUCTIONS_FILE} files should /init set up?"
+  Options: "Project ${PROJECT_INSTRUCTIONS_FILE}" | "Personal ${LOCAL_INSTRUCTIONS_FILE}" | "Both project + personal"
   Description for project: "Team-shared instructions checked into source control — architecture, coding standards, common workflows."
   Description for personal: "Your private preferences for this project (gitignored, not shared) — your role, sandbox URLs, preferred test data, workflow quirks."
 
 - "Also set up skills and hooks?"
-  Options: "Skills + hooks" | "Skills only" | "Hooks only" | "Neither, just CLAUDE.md"
+  Options: "Skills + hooks" | "Skills only" | "Hooks only" | "Neither, just ${PROJECT_INSTRUCTIONS_FILE}"
   Description for skills: "On-demand capabilities you or Claude invoke with \`/skill-name\` — good for repeatable workflows and reference knowledge."
   Description for hooks: "Deterministic shell commands that run on tool events (e.g., format after every edit). Claude can't skip them."
 

@@ -1,0 +1,3 @@
+export const PROJECT_INSTRUCTIONS_FILE = 'SHLOMO.md'
+export const LOCAL_INSTRUCTIONS_FILE = 'SHLOMO.local.md'
+

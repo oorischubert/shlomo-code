@@ -1,19 +1,15 @@
-# Shlomo Code
-
-> A local LM Studio-powered fork of Claude Code, rebuilt as `shlomo`.
+<table>
+  <tr>
+    <td width="50" valign="middle">
+      <img src="./assets/shlomo-logo.png" alt="Shlomo logo" width="40" />
+    </td>
+    <td valign="middle">
+      <font size="6"><strong>Shlomo Code</strong></font>
+    </td>
+  </tr>
+</table>
 
 Shlomo Code brings the Claude Code-style terminal UI to a fully local workflow. It is wired to use LM Studio on `localhost` by default, exposes local model selection in the TUI, and removes the need for Anthropic auth setup in normal use.
-
-## At a Glance
-
-| What | Status |
-| --- | --- |
-| Full terminal UI | Implemented |
-| Local model discovery from LM Studio | Implemented |
-| Local chat through LM Studio | Implemented |
-| Baked-in localhost backend | Implemented |
-| In-app port switching with `/port` | Implemented |
-| Anthropic login / cloud workflows | Intentionally not used |
 
 ## How It Works
 
@@ -96,13 +92,6 @@ Then run:
 shlomo
 ```
 
-Recommended for this repo:
-
-```bash
-sudo ln -s /Users/oorischubert/development/claude/dist/shlomo /usr/local/bin/shlomo
-hash -r
-```
-
 This assumes:
 
 - LM Studio is installed on that device
@@ -114,16 +103,6 @@ Why symlink instead of copying:
 - `shlomo` always points at the latest local build
 - after `bun run build`, you do not need to reinstall it
 - it avoids stale copies in `/usr/local/bin`
-
-If `shlomo` is already installed and points to an older binary, replace it first:
-
-```bash
-sudo rm -f /usr/local/bin/shlomo
-sudo ln -s /absolute/path/to/this/repo/dist/shlomo /usr/local/bin/shlomo
-hash -r
-```
-
-If the target machine has a different OS or CPU architecture, rebuild on that machine instead of reusing the binary from another system.
 
 ## Common Commands
 

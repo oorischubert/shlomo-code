@@ -29,6 +29,10 @@ import { logError } from './log.js'
 import type { MemoryType } from './memory/types.js'
 import { normalizePathForConfigKey } from './path.js'
 import { getEssentialTrafficOnlyReason } from './privacyLevel.js'
+import {
+  LOCAL_INSTRUCTIONS_FILE,
+  PROJECT_INSTRUCTIONS_FILE,
+} from './instructionsFiles.js'
 import { getManagedFilePath } from './settings/managedPath.js'
 import type { ThemeSetting } from './theme.js'
 
@@ -1784,13 +1788,13 @@ export function getMemoryPath(memoryType: MemoryType): string {
 
   switch (memoryType) {
     case 'User':
-      return join(getClaudeConfigHomeDir(), 'CLAUDE.md')
+      return join(getClaudeConfigHomeDir(), PROJECT_INSTRUCTIONS_FILE)
     case 'Local':
-      return join(cwd, 'CLAUDE.local.md')
+      return join(cwd, LOCAL_INSTRUCTIONS_FILE)
     case 'Project':
-      return join(cwd, 'CLAUDE.md')
+      return join(cwd, PROJECT_INSTRUCTIONS_FILE)
     case 'Managed':
-      return join(getManagedFilePath(), 'CLAUDE.md')
+      return join(getManagedFilePath(), PROJECT_INSTRUCTIONS_FILE)
     case 'AutoMem':
       return getAutoMemEntrypoint()
   }
