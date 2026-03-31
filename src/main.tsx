@@ -932,8 +932,25 @@ async function run(): Promise<CommanderCommand> {
     await init();
     profileCheckpoint('preAction_after_init');
 
-    if (!process.env.ANTHROPIC_MODEL && !process.env.SHLOMO_MODEL && !process.env.OPENAI_MODEL) {
-      const lmStudioModels = await fetchLmStudioModelsAsync();
+    const hasExplicitStartupModel =
+      !!process.env.ANTHROPIC_MODEL ||
+      !!process.env.SHLOMO_MODEL ||
+      !!process.env.OPENAI_MODEL
+    const hasPersistedModelSelection = !!getInitialSettings().model
+
+    let lmStudioModels: Awaited<ReturnType<typeof fetchLmStudioModelsAsync>> = []
+    try {
+      // Warm the local model cache on every startup so /model renders the full
+      // LM Studio inventory instead of falling back to the sync XHR path.
+      lmStudioModels = await fetchLmStudioModelsAsync()
+    } catch {
+      lmStudioModels = []
+    }
+
+    // On first run, seed the startup model from LM Studio so Shlomo has a
+    // concrete local model to target. Once the user has selected a model,
+    // never overwrite that persisted choice with the first LM Studio entry.
+    if (!hasExplicitStartupModel && !hasPersistedModelSelection) {
       const firstLmStudioModel = lmStudioModels[0]?.value;
       if (typeof firstLmStudioModel === 'string' && firstLmStudioModel.length > 0) {
         process.env.ANTHROPIC_MODEL = firstLmStudioModel;
