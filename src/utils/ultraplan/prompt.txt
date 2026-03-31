@@ -1,0 +1,2 @@
+Ultraplan is unavailable in this local LM Studio build.
+Continue planning and implementation directly in the local terminal session.

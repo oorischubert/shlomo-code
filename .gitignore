@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+cli
+cli.js
+cli.js.map
+
+# Bun temporary build artifacts
+*.bun-build
+.bun-build
+
+# Local app settings
+.claude/settings.local.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+.claude/settings.local.json
+
+# Logs and coverage
+*.log
+coverage/
+
+# Caches and temp directories
+.cache/
+.turbo/
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
