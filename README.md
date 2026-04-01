@@ -1,6 +1,7 @@
-<p>
+<p align="left">
   <img src="./assets/shlomo-logo.png" alt="Shlomo logo" width="40" style="vertical-align: middle;" />
-  <span style="font-size: 2rem; font-weight: 700; margin-left: 14px; vertical-align: middle;">Shlomo Code</span>
+  &nbsp;&nbsp;&nbsp;
+  <strong style="font-size: 2rem; vertical-align: middle;">Shlomo Code</strong>
 </p>
 
 Shlomo Code brings the Claude Code-style terminal UI to a fully local workflow. It is wired to use LM Studio on `localhost` by default, exposes local model selection in the TUI, and removes the need for Anthropic auth setup in normal use.
@@ -21,7 +22,7 @@ Shlomo is baked to talk to LM Studio locally.
 If LM Studio is running on a different port, change it inside the app:
 
 ```text
-/port 1235
+/port <port>
 ```
 
 You can also check or reset it:
@@ -41,10 +42,16 @@ You can also check or reset it:
 
 ### 2. Start LM Studio
 
-In LM Studio:
+Start the LM Studio local server on the machine where you want to run Shlomo:
+
+```bash
+lms server start --port 1234
+```
+
+Then in LM Studio:
 
 1. Load a chat-capable model
-2. Start the local server
+2. Make sure the local server is running
 3. Leave it on port `1234` unless you plan to change it with `/port`
 
 ### 3. Install dependencies

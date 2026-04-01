@@ -436,6 +436,63 @@ function anthropicContentToText(
     .join('\n')
 }
 
+function normalizeLmStudioToolResultContent(content: unknown): unknown {
+  if (typeof content === 'string') {
+    return content
+  }
+
+  if (!Array.isArray(content)) {
+    return content
+  }
+
+  const textBlocks = content
+    .map(part => {
+      if (typeof part === 'string') {
+        return part.trim().length > 0
+          ? { type: 'text' as const, text: part }
+          : null
+      }
+
+      if (!part || typeof part !== 'object') {
+        return null
+      }
+
+      const block = part as {
+        type?: string
+        text?: string
+      }
+
+      switch (block.type) {
+        case 'text':
+          return (block.text ?? '').trim().length > 0
+            ? { type: 'text' as const, text: block.text ?? '' }
+            : null
+        case 'tool_reference':
+          return {
+            type: 'text' as const,
+            text: '[Tool reference omitted for LM Studio compatibility]',
+          }
+        case 'image':
+          return { type: 'text' as const, text: '[image]' }
+        case 'document':
+          return { type: 'text' as const, text: '[document]' }
+        default: {
+          const text = anthropicContentPartToText(part)
+          return text.trim().length > 0
+            ? { type: 'text' as const, text }
+            : null
+        }
+      }
+    })
+    .filter((block): block is { type: 'text'; text: string } => block !== null)
+
+  if (textBlocks.length === 0) {
+    return [{ type: 'text' as const, text: '[Tool result]' }]
+  }
+
+  return textBlocks
+}
+
 function normalizeAnthropicMessage(message: {
   role?: string
   content?: unknown
@@ -510,6 +567,7 @@ function normalizeAnthropicContent(
       const block = part as {
         type?: string
         text?: string
+        content?: unknown
       }
 
       if (
@@ -518,6 +576,13 @@ function normalizeAnthropicContent(
         isSystemReminderText(block.text ?? '')
       ) {
         return null
+      }
+
+      if (block.type === 'tool_result') {
+        return {
+          ...block,
+          content: normalizeLmStudioToolResultContent(block.content),
+        }
       }
 
       return part
