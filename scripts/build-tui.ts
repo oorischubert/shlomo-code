@@ -1,5 +1,6 @@
-import { chmodSync, mkdirSync } from 'fs'
-import { dirname } from 'path'
+import { chmodSync, mkdtempSync, mkdirSync, rmSync } from 'fs'
+import { tmpdir } from 'os'
+import { dirname, resolve } from 'path'
 
 const compile = process.argv.includes('--compile')
 const nameArgIndex = process.argv.indexOf('--name')
@@ -8,6 +9,7 @@ const outputName =
     ? process.argv[nameArgIndex + 1]
     : 'shlomo'
 const outputPath = compile ? `dist/${outputName}` : `dist/${outputName}.js`
+const absoluteOutputPath = resolve(outputPath)
 
 const macro = {
   VERSION: '0.1.0-tui',
@@ -22,31 +24,37 @@ const macro = {
 mkdirSync(dirname(outputPath), { recursive: true })
 
 if (compile) {
-  const proc = Bun.spawn(
-    [
-      'bun',
-      'build',
-      '--compile',
-      '--target=bun',
-      '--outfile',
-      outputPath,
-      'src/entrypoints/cli.tsx',
-      '--define',
-      `MACRO=${JSON.stringify(macro)}`,
-      '--define',
-      `process.env.USER_TYPE=${JSON.stringify('external')}`,
-      '--define',
-      'process.env.IS_DEMO=false',
-    ],
-    {
-      stdout: 'inherit',
-      stderr: 'inherit',
-    },
-  )
+  const compileCwd = mkdtempSync(`${tmpdir()}/shlomo-build-`)
+  try {
+    const proc = Bun.spawn(
+      [
+        'bun',
+        'build',
+        '--compile',
+        '--target=bun',
+        '--outfile',
+        absoluteOutputPath,
+        resolve('src/entrypoints/cli.tsx'),
+        '--define',
+        `MACRO=${JSON.stringify(macro)}`,
+        '--define',
+        `process.env.USER_TYPE=${JSON.stringify('external')}`,
+        '--define',
+        'process.env.IS_DEMO=false',
+      ],
+      {
+        cwd: compileCwd,
+        stdout: 'inherit',
+        stderr: 'inherit',
+      },
+    )
 
-  const exitCode = await proc.exited
-  if (exitCode !== 0) {
-    process.exit(exitCode)
+    const exitCode = await proc.exited
+    if (exitCode !== 0) {
+      process.exit(exitCode)
+    }
+  } finally {
+    rmSync(compileCwd, { recursive: true, force: true })
   }
   chmodSync(outputPath, 0o755)
 } else {

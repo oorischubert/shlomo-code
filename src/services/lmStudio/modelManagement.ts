@@ -22,6 +22,8 @@ export type LmStudioModel = {
   key: string
   display_name: string
   loaded_instances: LmStudioModelInstance[]
+  context_length?: number
+  max_context_length?: number
   capabilities?: {
     vision?: boolean
     trained_for_tool_use?: boolean

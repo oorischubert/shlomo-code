@@ -2,12 +2,7 @@ import { feature } from 'bun:bundle'
 import { getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from '../../services/analytics/growthbook.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
-import { CLAUDE_CODE_GUIDE_AGENT } from './built-in/claudeCodeGuideAgent.js'
-import { EXPLORE_AGENT } from './built-in/exploreAgent.js'
 import { GENERAL_PURPOSE_AGENT } from './built-in/generalPurposeAgent.js'
-import { PLAN_AGENT } from './built-in/planAgent.js'
-import { STATUSLINE_SETUP_AGENT } from './built-in/statuslineSetup.js'
-import { VERIFICATION_AGENT } from './built-in/verificationAgent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
 export function areExplorePlanAgentsEnabled(): boolean {
@@ -42,31 +37,19 @@ export function getBuiltInAgents(): AgentDefinition[] {
     }
   }
 
-  const agents: AgentDefinition[] = [
-    GENERAL_PURPOSE_AGENT,
-    STATUSLINE_SETUP_AGENT,
-  ]
+  const agents: AgentDefinition[] = [GENERAL_PURPOSE_AGENT]
 
-  if (areExplorePlanAgentsEnabled()) {
-    agents.push(EXPLORE_AGENT, PLAN_AGENT)
-  }
-
-  // Include Code Guide agent for non-SDK entrypoints
-  const isNonSdkEntrypoint =
-    process.env.CLAUDE_CODE_ENTRYPOINT !== 'sdk-ts' &&
-    process.env.CLAUDE_CODE_ENTRYPOINT !== 'sdk-py' &&
-    process.env.CLAUDE_CODE_ENTRYPOINT !== 'sdk-cli'
-
-  if (isNonSdkEntrypoint) {
-    agents.push(CLAUDE_CODE_GUIDE_AGENT)
-  }
-
-  if (
-    feature('VERIFICATION_AGENT') &&
-    getFeatureValue_CACHED_MAY_BE_STALE('tengu_hive_evidence', false)
-  ) {
-    agents.push(VERIFICATION_AGENT)
-  }
+  // Shlomo LM Studio build: only expose the generic built-in agent for now.
+  // The other built-ins either hardcode Anthropic model aliases such as
+  // `haiku` / `sonnet` or assume upstream Claude-oriented behavior. They can
+  // be re-enabled later after converting them to `inherit` or explicit
+  // LM Studio-compatible model handling.
+  //
+  // Hidden for now:
+  // - STATUSLINE_SETUP_AGENT
+  // - CLAUDE_CODE_GUIDE_AGENT
+  // - EXPLORE_AGENT / PLAN_AGENT
+  // - VERIFICATION_AGENT
 
   return agents
 }

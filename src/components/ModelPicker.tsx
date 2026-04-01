@@ -268,7 +268,7 @@ export function ModelPicker(t0) {
   } else {
     t15 = $[41];
   }
-  const t16 = headerText ?? "Switch between models available from your local LM Studio or OpenAI-compatible server.";
+  const t16 = headerText ?? "Switch between models available through your LM Studio server.";
   let t17;
   if ($[42] !== t16) {
     t17 = <Text dimColor={true}>{t16}</Text>;

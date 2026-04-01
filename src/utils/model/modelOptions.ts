@@ -276,12 +276,18 @@ function compareLmStudioModels(a: LmStudioModel, b: LmStudioModel): number {
 
 function mapLmStudioModelToOption(model: LmStudioModel): ModelOption {
   const isLoaded = (model.loaded_instances?.length ?? 0) > 0
+  const descriptionParts = [
+    isLoaded ? 'Active in LM Studio' : 'LM Studio model',
+  ]
+
+  if (model.display_name && model.display_name !== model.key) {
+    descriptionParts.push(model.display_name)
+  }
+
   return {
     value: model.key,
     label: model.key,
-    description: isLoaded
-      ? `Loaded in LM Studio${model.display_name && model.display_name !== model.key ? ` · ${model.display_name}` : ''}`
-      : `Available in LM Studio${model.display_name && model.display_name !== model.key ? ` · ${model.display_name}` : ''}`,
+    description: descriptionParts.join(' · '),
   }
 }
 
