@@ -3,9 +3,9 @@ node_modules/
 
 # Build outputs
 dist/
-cli
-cli.js
-cli.js.map
+/cli
+/cli.js
+/cli.js.map
 
 # Bun temporary build artifacts
 *.bun-build
