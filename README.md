@@ -80,10 +80,10 @@ dist/shlomo
 
 ## Run On Your Device
 
-If you want `shlomo` available globally on your machine:
+If you want `shlomo` available globally on your machine, `cd` into this repo then:
 
 ```bash
-sudo ln -s /absolute/path/to/this/repo/dist/shlomo /usr/local/bin/shlomo
+sudo ln -sf "$(pwd)/dist/shlomo" /usr/local/bin/shlomo
 hash -r
 ```
 
@@ -187,18 +187,6 @@ Reduced or intentionally omitted:
 - Updater/install flows from the upstream product
 - Features that rely on APIs local LM Studio models do not support
 
-## What Changed
-
-- The CLI and visible branding were changed from Claude Code to Shlomo Code
-- The default runtime is now LM Studio on localhost, not Anthropic-hosted services
-- Model discovery comes from your local LM Studio server
-- Embedding-only models are filtered out of the interactive model list
-- Switching models now unloads other loaded LM Studio LLMs before loading the selected model
-- The LM Studio port can be changed in-app with `/port`
-- `/unload` unloads all currently loaded LM Studio models
-- `shlomo unload` unloads models without entering the TUI
-- `shlomo resume` exposes the same resume flow directly from the shell
-
 ## Troubleshooting
 
 If Shlomo starts but does not answer:
@@ -218,6 +206,10 @@ If you want to verify the local backend quickly:
 ./dist/shlomo -p "hello"
 ```
 
-## Notes
+### Estimate Context Length Before Loading
 
-This repo is not a pristine upstream Claude Code checkout. It is a modified local fork focused on a practical LM Studio-backed experience. The full TUI is present and runnable, but the project is intentionally narrower than the original product surface.
+If you want to check whether a model will fit at a specific context length before actually loading it, LM Studio can estimate that:
+
+```bash
+lms load --estimate-only <model> --context-length <length> --gpu max
+```
