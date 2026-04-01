@@ -1,8 +1,8 @@
-<p align="left">
-  <img src="./assets/shlomo-logo.png" alt="Shlomo logo" width="40" style="vertical-align: middle;" />
-  &nbsp;&nbsp;&nbsp;
-  <strong style="font-size: 2rem; vertical-align: middle;">Shlomo Code</strong>
-</p>
+<h1 align="left">
+  <img src="./assets/shlomo-logo.png" alt="Shlomo logo" width="52" style="vertical-align: middle;" />
+  &nbsp;&nbsp;
+  Shlomo Code
+</h1>
 
 Shlomo Code brings the Claude Code-style terminal UI to a fully local workflow. It is wired to use LM Studio on `localhost` by default, exposes local model selection in the TUI, and removes the need for Anthropic auth setup in normal use.
 
