@@ -53,6 +53,7 @@ import { logError } from '../../utils/log.js'
 import { isAutoMemFile } from '../../utils/memoryFileDetection.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { getCanonicalName, getMainLoopModel } from '../../utils/model/model.js'
+import { isLmStudioBackend } from '../../utils/model/providers.js'
 import {
   mapNotebookCellsToToolResult,
   readNotebook,
@@ -186,6 +187,42 @@ export class MaxFileReadTokenExceededError extends Error {
 
 // Common image extensions
 const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
+
+async function readExtractedPdfImageBlocks(
+  outputDir: string,
+): Promise<
+  Array<{
+    type: 'image'
+    source: {
+      type: 'base64'
+      media_type: Base64ImageSource['media_type']
+      data: string
+    }
+  }>
+> {
+  const entries = await readdir(outputDir)
+  const imageFiles = entries.filter(f => f.endsWith('.jpg')).sort()
+  return Promise.all(
+    imageFiles.map(async f => {
+      const imgPath = path.join(outputDir, f)
+      const imgBuffer = await readFileAsync(imgPath)
+      const resized = await maybeResizeAndDownsampleImageBuffer(
+        imgBuffer,
+        imgBuffer.length,
+        'jpeg',
+      )
+      return {
+        type: 'image' as const,
+        source: {
+          type: 'base64' as const,
+          media_type:
+            `image/${resized.mediaType}` as Base64ImageSource['media_type'],
+          data: resized.buffer.toString('base64'),
+        },
+      }
+    }),
+  )
+}
 
 /**
  * Detects if a file path is a session-related file for analytics logging.
@@ -913,27 +950,8 @@ async function callInner(
         filePath: fullFilePath,
         content: `PDF pages ${pages}`,
       })
-      const entries = await readdir(extractResult.data.file.outputDir)
-      const imageFiles = entries.filter(f => f.endsWith('.jpg')).sort()
-      const imageBlocks = await Promise.all(
-        imageFiles.map(async f => {
-          const imgPath = path.join(extractResult.data.file.outputDir, f)
-          const imgBuffer = await readFileAsync(imgPath)
-          const resized = await maybeResizeAndDownsampleImageBuffer(
-            imgBuffer,
-            imgBuffer.length,
-            'jpeg',
-          )
-          return {
-            type: 'image' as const,
-            source: {
-              type: 'base64' as const,
-              media_type:
-                `image/${resized.mediaType}` as Base64ImageSource['media_type'],
-              data: resized.buffer.toString('base64'),
-            },
-          }
-        }),
+      const imageBlocks = await readExtractedPdfImageBlocks(
+        extractResult.data.file.outputDir,
       )
       return {
         data: extractResult.data,
@@ -957,7 +975,9 @@ async function callInner(
     const fs = getFsImplementation()
     const stats = await fs.stat(resolvedFilePath)
     const shouldExtractPages =
-      !isPDFSupported() || stats.size > PDF_EXTRACT_SIZE_THRESHOLD
+      !isPDFSupported() ||
+      stats.size > PDF_EXTRACT_SIZE_THRESHOLD ||
+      isLmStudioBackend()
 
     if (shouldExtractPages) {
       const extractResult = await extractPDFPages(resolvedFilePath)
@@ -973,6 +993,27 @@ async function callInner(
           available: extractResult.error.reason !== 'unavailable',
           fileSize: stats.size,
         })
+        if (isLmStudioBackend()) {
+          throw new Error(
+            extractResult.error.reason === 'unavailable'
+              ? 'LM Studio does not accept PDF document blocks directly. Install poppler-utils (`brew install poppler` or `apt-get install poppler-utils`) so Shlomo can render PDF pages as images.'
+              : extractResult.error.message,
+          )
+        }
+      }
+
+      if (extractResult.success && isLmStudioBackend()) {
+        const imageBlocks = await readExtractedPdfImageBlocks(
+          extractResult.data.file.outputDir,
+        )
+        return {
+          data: extractResult.data,
+          ...(imageBlocks.length > 0 && {
+            newMessages: [
+              createUserMessage({ content: imageBlocks, isMeta: true }),
+            ],
+          }),
+        }
       }
     }
 
