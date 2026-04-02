@@ -436,61 +436,72 @@ function anthropicContentToText(
     .join('\n')
 }
 
-function normalizeLmStudioToolResultContent(content: unknown): unknown {
-  if (typeof content === 'string') {
-    return content
+function normalizeLmStudioToolResultContent(content: unknown): {
+  content: unknown
+  siblingBlocks: unknown[]
+} {
+  if (typeof content === 'string' || !Array.isArray(content)) {
+    return {
+      content,
+      siblingBlocks: [],
+    }
   }
 
-  if (!Array.isArray(content)) {
-    return content
-  }
+  const textBlocks: Array<{ type: 'text'; text: string }> = []
+  const siblingBlocks: unknown[] = []
 
-  const textBlocks = content
-    .map(part => {
-      if (typeof part === 'string') {
-        return part.trim().length > 0
-          ? { type: 'text' as const, text: part }
-          : null
+  for (const part of content) {
+    if (typeof part === 'string') {
+      if (part.trim().length > 0) {
+        textBlocks.push({ type: 'text', text: part })
       }
+      continue
+    }
 
-      if (!part || typeof part !== 'object') {
-        return null
-      }
+    if (!part || typeof part !== 'object') {
+      continue
+    }
 
-      const block = part as {
-        type?: string
-        text?: string
-      }
+    const block = part as {
+      type?: string
+      text?: string
+    }
 
-      switch (block.type) {
-        case 'text':
-          return (block.text ?? '').trim().length > 0
-            ? { type: 'text' as const, text: block.text ?? '' }
-            : null
-        case 'tool_reference':
-          return {
-            type: 'text' as const,
-            text: '[Tool reference omitted for LM Studio compatibility]',
-          }
-        case 'image':
-          return { type: 'text' as const, text: '[image]' }
-        case 'document':
-          return { type: 'text' as const, text: '[document]' }
-        default: {
-          const text = anthropicContentPartToText(part)
-          return text.trim().length > 0
-            ? { type: 'text' as const, text }
-            : null
+    switch (block.type) {
+      case 'text':
+        if ((block.text ?? '').trim().length > 0) {
+          textBlocks.push({ type: 'text', text: block.text ?? '' })
+        }
+        break
+      case 'tool_reference':
+        textBlocks.push({
+          type: 'text',
+          text: '[Tool reference omitted for LM Studio compatibility]',
+        })
+        break
+      case 'image':
+      case 'document':
+        // LM Studio is stricter than Anthropic about tool_result inner content.
+        // Keep the tool_result text-only, but preserve multimodal payloads as
+        // sibling top-level blocks so models can still see the actual image/doc.
+        siblingBlocks.push(part)
+        break
+      default: {
+        const text = anthropicContentPartToText(part)
+        if (text.trim().length > 0) {
+          textBlocks.push({ type: 'text', text })
         }
       }
-    })
-    .filter((block): block is { type: 'text'; text: string } => block !== null)
-
-  if (textBlocks.length === 0) {
-    return [{ type: 'text' as const, text: '[Tool result]' }]
+    }
   }
 
-  return textBlocks
+  return {
+    content:
+      textBlocks.length > 0
+        ? textBlocks
+        : [{ type: 'text' as const, text: '[Tool result]' }],
+    siblingBlocks,
+  }
 }
 
 function normalizeAnthropicMessage(message: {
@@ -551,43 +562,51 @@ function normalizeAnthropicContent(
     return content
   }
 
-  return content
-    .map(part => {
-      if (typeof part === 'string') {
-        if (options?.stripSystemReminders && isSystemReminderText(part)) {
-          return null
-        }
-        return part
-      }
+  const normalizedParts: unknown[] = []
 
-      if (!part || typeof part !== 'object') {
-        return null
+  for (const part of content) {
+    if (typeof part === 'string') {
+      if (options?.stripSystemReminders && isSystemReminderText(part)) {
+        continue
       }
+      normalizedParts.push(part)
+      continue
+    }
 
-      const block = part as {
-        type?: string
-        text?: string
-        content?: unknown
-      }
+    if (!part || typeof part !== 'object') {
+      continue
+    }
 
-      if (
-        options?.stripSystemReminders &&
-        block.type === 'text' &&
-        isSystemReminderText(block.text ?? '')
-      ) {
-        return null
-      }
+    const block = part as {
+      type?: string
+      text?: string
+      content?: unknown
+    }
 
-      if (block.type === 'tool_result') {
-        return {
-          ...block,
-          content: normalizeLmStudioToolResultContent(block.content),
-        }
-      }
+    if (
+      options?.stripSystemReminders &&
+      block.type === 'text' &&
+      isSystemReminderText(block.text ?? '')
+    ) {
+      continue
+    }
 
-      return part
-    })
-    .filter(part => {
+    if (block.type === 'tool_result') {
+      const normalizedToolResult = normalizeLmStudioToolResultContent(
+        block.content,
+      )
+      normalizedParts.push({
+        ...block,
+        content: normalizedToolResult.content,
+      })
+      normalizedParts.push(...normalizedToolResult.siblingBlocks)
+      continue
+    }
+
+    normalizedParts.push(part)
+  }
+
+  return normalizedParts.filter(part => {
       if (part === null) {
         return false
       }
