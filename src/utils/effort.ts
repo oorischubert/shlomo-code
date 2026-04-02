@@ -7,6 +7,8 @@ import { getAPIProvider } from './model/providers.js'
 import { get3PModelCapabilityOverride } from './model/modelSupportOverrides.js'
 import { isEnvTruthy } from './envUtils.js'
 import type { EffortLevel } from 'src/entrypoints/sdk/runtimeTypes.js'
+import { getCachedLmStudioReasoningSupport } from '../services/lmStudio/modelManagement.js'
+import { isLmStudioBackend } from './model/providers.js'
 
 export type { EffortLevel }
 
@@ -28,6 +30,10 @@ export function modelSupportsEffort(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(model, 'effort')
   if (supported3P !== undefined) {
     return supported3P
+  }
+  if (isLmStudioBackend()) {
+    const cachedSupport = getCachedLmStudioReasoningSupport(model)
+    return cachedSupport?.supportsEffort ?? true
   }
   // Supported by a subset of Claude 4 models
   if (m.includes('opus-4-6') || m.includes('sonnet-4-6')) {
@@ -54,6 +60,10 @@ export function modelSupportsMaxEffort(model: string): boolean {
   const supported3P = get3PModelCapabilityOverride(model, 'max_effort')
   if (supported3P !== undefined) {
     return supported3P
+  }
+  if (isLmStudioBackend()) {
+    const cachedSupport = getCachedLmStudioReasoningSupport(model)
+    return cachedSupport?.supportsMaxEffort ?? true
   }
   if (model.toLowerCase().includes('opus-4-6')) {
     return true

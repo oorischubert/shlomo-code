@@ -28,6 +28,32 @@ export type LmStudioModel = {
     vision?: boolean
     trained_for_tool_use?: boolean
   }
+  reasoning?:
+    | boolean
+    | {
+        effort?:
+          | boolean
+          | string[]
+          | {
+              supported?: boolean
+              values?: string[]
+              options?: string[]
+              enum?: string[]
+            }
+        reasoning_effort?:
+          | boolean
+          | string[]
+          | {
+              supported?: boolean
+              values?: string[]
+              options?: string[]
+              enum?: string[]
+            }
+        supported?: boolean
+        values?: string[]
+        options?: string[]
+        enum?: string[]
+      }
 }
 
 type LmStudioModelsResponse = {
@@ -62,9 +88,147 @@ export type SwitchLmStudioModelResult = {
 
 const LM_STUDIO_UNLOAD_POLL_INTERVAL_MS = 250
 const LM_STUDIO_UNLOAD_TIMEOUT_MS = 15_000
+const DEFAULT_LM_STUDIO_EFFORT_LEVELS = ['low', 'medium', 'high', 'max'] as const
+
+type LmStudioReasoningSupport = {
+  supportsEffort: boolean
+  supportsMaxEffort: boolean
+  effortLevels: string[]
+}
+
+const lmStudioReasoningSupportCache = new Map<string, LmStudioReasoningSupport>()
 
 export function getLmStudioRestBaseUrl(): string {
   return `${getLmStudioBaseUrl().replace(/\/v1\/?$/, '')}/api/v1`
+}
+
+function normalizeReasoningLevels(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === 'string')
+      .map(item => item.toLowerCase())
+  }
+  return []
+}
+
+function pickReasoningLevels(...candidates: unknown[]): string[] {
+  for (const candidate of candidates) {
+    const levels = normalizeReasoningLevels(candidate)
+    if (levels.length > 0) {
+      return levels
+    }
+  }
+  return []
+}
+
+function parseReasoningEffort(
+  value: unknown,
+): Pick<LmStudioReasoningSupport, 'supportsEffort' | 'effortLevels'> {
+  if (typeof value === 'boolean') {
+    return {
+      supportsEffort: value,
+      effortLevels: value ? [...DEFAULT_LM_STUDIO_EFFORT_LEVELS] : [],
+    }
+  }
+
+  if (Array.isArray(value)) {
+    const effortLevels = normalizeReasoningLevels(value)
+    return {
+      supportsEffort: effortLevels.length > 0,
+      effortLevels,
+    }
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as {
+      supported?: unknown
+      values?: unknown
+      options?: unknown
+      enum?: unknown
+    }
+    const effortLevels = pickReasoningLevels(
+      record.values,
+      record.options,
+      record.enum,
+    )
+    const levels =
+      effortLevels.length > 0
+        ? effortLevels
+        : record.supported === true
+          ? [...DEFAULT_LM_STUDIO_EFFORT_LEVELS]
+          : []
+    return {
+      supportsEffort: record.supported === true || levels.length > 0,
+      effortLevels: levels,
+    }
+  }
+
+  return {
+    supportsEffort: false,
+    effortLevels: [],
+  }
+}
+
+function getReasoningSupportForModel(model: LmStudioModel): LmStudioReasoningSupport {
+  const reasoning = model.reasoning
+
+  if (typeof reasoning === 'boolean') {
+    return {
+      supportsEffort: reasoning,
+      supportsMaxEffort: reasoning,
+      effortLevels: reasoning ? [...DEFAULT_LM_STUDIO_EFFORT_LEVELS] : [],
+    }
+  }
+
+  if (reasoning && typeof reasoning === 'object') {
+    const record = reasoning as Record<string, unknown>
+    const effortSupport = parseReasoningEffort(
+      record.effort ?? record.reasoning_effort ?? reasoning,
+    )
+    const topLevelLevels = pickReasoningLevels(
+      record.values,
+      record.options,
+      record.enum,
+    )
+    const effortLevels =
+      effortSupport.effortLevels.length > 0
+        ? effortSupport.effortLevels
+        : topLevelLevels.length > 0
+          ? topLevelLevels
+          : effortSupport.supportsEffort
+            ? [...DEFAULT_LM_STUDIO_EFFORT_LEVELS]
+            : []
+
+    return {
+      supportsEffort:
+        effortSupport.supportsEffort || record.supported === true,
+      supportsMaxEffort:
+        effortLevels.includes('max') ||
+        (record.supported === true && effortLevels.length === 0),
+      effortLevels,
+    }
+  }
+
+  return {
+    supportsEffort: false,
+    supportsMaxEffort: false,
+    effortLevels: [],
+  }
+}
+
+function updateLmStudioReasoningSupportCache(models: LmStudioModel[]): void {
+  lmStudioReasoningSupportCache.clear()
+  for (const model of models) {
+    const support = getReasoningSupportForModel(model)
+    lmStudioReasoningSupportCache.set(model.key.toLowerCase(), support)
+    lmStudioReasoningSupportCache.set(model.display_name.toLowerCase(), support)
+  }
+}
+
+export function getCachedLmStudioReasoningSupport(
+  model: string,
+): LmStudioReasoningSupport | undefined {
+  return lmStudioReasoningSupportCache.get(model.toLowerCase())
 }
 
 function getLmStudioRequestHeaders(): HeadersInit {
@@ -112,7 +276,9 @@ async function requestLmStudioJson<T>(
 
 export async function fetchLmStudioModels(): Promise<LmStudioModel[]> {
   const data = await requestLmStudioJson<LmStudioModelsResponse>('/models')
-  return Array.isArray(data.models) ? data.models : []
+  const models = Array.isArray(data.models) ? data.models : []
+  updateLmStudioReasoningSupportCache(models)
+  return models
 }
 
 function sleep(ms: number): Promise<void> {
