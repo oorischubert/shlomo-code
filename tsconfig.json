@@ -6,6 +6,7 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["bun-types"],
     "baseUrl": ".",
@@ -14,5 +15,11 @@
     },
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "scripts/**/*.ts", "types/**/*.d.ts"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "scripts/**/*.ts",
+    "types/*.d.ts",
+    "types/**/*.d.ts"
+  ]
 }

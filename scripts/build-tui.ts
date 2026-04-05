@@ -12,7 +12,7 @@ const outputPath = compile ? `dist/${outputName}` : `dist/${outputName}.js`
 const absoluteOutputPath = resolve(outputPath)
 
 const macro = {
-  VERSION: '0.1.0-tui',
+  VERSION: '0.2.0-tui',
   BUILD_TIME: new Date().toISOString(),
   PACKAGE_URL: 'shlomo-code',
   NATIVE_PACKAGE_URL: 'shlomo-code-native',
@@ -69,7 +69,7 @@ if (compile) {
       'process.env.USER_TYPE': JSON.stringify('external'),
       'process.env.IS_DEMO': 'false',
     },
-  })
+  } as any)
 
   if (!result.success) {
     for (const log of result.logs) {

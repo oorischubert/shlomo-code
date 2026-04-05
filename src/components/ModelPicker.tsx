@@ -79,7 +79,7 @@ export function ModelPicker(t0) {
   bb0: {
     const hasResolvedLocalModels = modelOptions.some(opt => opt.value !== null);
     const isAnthropicAlias = initial !== null && (MODEL_ALIASES as readonly string[]).includes(initial.toLowerCase().trim());
-    if (initial !== null && !modelOptions.some(opt => opt.value === initial) && !(hasResolvedLocalModels && isAnthropicAlias)) {
+    if (initial !== null && !modelOptions.some(opt => opt.value === initial) && !hasResolvedLocalModels && !isAnthropicAlias) {
       let t5;
       if ($[4] !== initial) {
         t5 = modelDisplayString(initial);

@@ -67,8 +67,64 @@ export type {
   SessionMutationOptions,
   ForkSessionOptions,
   ForkSessionResult,
+  SDKMessage,
+  SDKResultMessage,
   SDKSessionInfo,
+  SDKUserMessage,
 }
+
+// Compatibility exports for the stripped local SDK surface used by the
+// reconstructed Shlomo fork. Many upstream callers still import these names.
+export type SDKAssistantMessage = SDKMessage
+export type SDKStatusMessage = SDKMessage
+export type SDKSystemMessage = SDKMessage
+export type SDKToolProgressMessage = SDKMessage
+export type SDKUserMessageReplay = SDKUserMessage
+export type SDKAssistantMessageError = Record<string, unknown>
+export type SDKCompactBoundaryMessage = Record<string, unknown>
+export type SDKPermissionDenial = Record<string, unknown>
+export type SDKRateLimitInfo = Record<string, unknown>
+export type SDKStatus = Record<string, unknown>
+export type ModelInfo = Record<string, unknown>
+export type ModelUsage = Record<string, unknown>
+export type PermissionResult = Record<string, unknown>
+export type PermissionUpdate = Record<string, unknown>
+export type RewindFilesResult = Record<string, unknown>
+export type McpServerConfigForProcessTransport = Record<string, unknown>
+export type McpServerStatus = Record<string, unknown>
+export type ApiKeySource = string
+export type HookEvent = string
+export type HookInput = Record<string, unknown>
+export type HookJSONOutput = Record<string, unknown>
+export type AsyncHookJSONOutput = Record<string, unknown>
+export type SyncHookJSONOutput = Record<string, unknown>
+export type ExitReason = string
+export type PermissionMode = string
+export type ConfigChangeHookInput = Record<string, unknown>
+export type CwdChangedHookInput = Record<string, unknown>
+export type ElicitationHookInput = Record<string, unknown>
+export type ElicitationResultHookInput = Record<string, unknown>
+export type FileChangedHookInput = Record<string, unknown>
+export type InstructionsLoadedHookInput = Record<string, unknown>
+export type NotificationHookInput = Record<string, unknown>
+export type PermissionDeniedHookInput = Record<string, unknown>
+export type PermissionRequestHookInput = Record<string, unknown>
+export type PostCompactHookInput = Record<string, unknown>
+export type PostToolUseFailureHookInput = Record<string, unknown>
+export type PostToolUseHookInput = Record<string, unknown>
+export type PreCompactHookInput = Record<string, unknown>
+export type PreToolUseHookInput = Record<string, unknown>
+export type SessionEndHookInput = Record<string, unknown>
+export type SessionStartHookInput = Record<string, unknown>
+export type SetupHookInput = Record<string, unknown>
+export type StopFailureHookInput = Record<string, unknown>
+export type StopHookInput = Record<string, unknown>
+export type SubagentStartHookInput = Record<string, unknown>
+export type SubagentStopHookInput = Record<string, unknown>
+export type TaskCompletedHookInput = Record<string, unknown>
+export type TaskCreatedHookInput = Record<string, unknown>
+export type TeammateIdleHookInput = Record<string, unknown>
+export type UserPromptSubmitHookInput = Record<string, unknown>
 
 export function tool<Schema extends AnyZodRawShape>(
   _name: string,

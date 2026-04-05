@@ -116,7 +116,8 @@ import { safeParseJSON } from './utils/json.js';
 import { logError } from './utils/log.js';
 import { getModelDeprecationWarning } from './utils/model/deprecation.js';
 import { getDefaultMainLoopModel, getUserSpecifiedModelSetting, normalizeModelStringForAPI, parseUserSpecifiedModel } from './utils/model/model.js';
-import { fetchLmStudioModelsAsync } from './utils/model/modelOptions.js';
+import { cacheLmStudioModels } from './utils/model/modelOptions.js';
+import { fetchLmStudioModels } from './services/lmStudio/modelManagement.js';
 import { ensureModelStringsInitialized } from './utils/model/modelStrings.js';
 import { PERMISSION_MODES } from './utils/permissions/PermissionMode.js';
 import { checkAndDisableBypassPermissions, getAutoModeEnabledStateIfCached, initializeToolPermissionContext, initialPermissionModeFromCLI, isDefaultPermissionModeAuto, parseToolListFromCLI, removeDangerousPermissions, stripDangerousPermissionsForAutoMode, verifyAutoModeGateAccess } from './utils/permissions/permissionSetup.js';
@@ -160,6 +161,7 @@ import { errorMessage, getErrnoCode, isENOENT, TeleportOperationError, toError }
 import { getFsImplementation, safeResolvePath } from 'src/utils/fsOperations.js';
 import { gracefulShutdown, gracefulShutdownSync } from 'src/utils/gracefulShutdown.js';
 import { setAllHookEventsEnabled } from 'src/utils/hooks/hookEvents.js';
+import { getLmStudioPort } from 'src/utils/lmStudio.js';
 import { refreshModelCapabilities } from 'src/utils/model/modelCapabilities.js';
 import { peekForStdinData, writeToStderr } from 'src/utils/process.js';
 import { setCwd } from 'src/utils/Shell.js';
@@ -932,29 +934,79 @@ async function run(): Promise<CommanderCommand> {
     await init();
     profileCheckpoint('preAction_after_init');
 
-    const hasExplicitStartupModel =
-      !!process.env.ANTHROPIC_MODEL ||
-      !!process.env.SHLOMO_MODEL ||
-      !!process.env.OPENAI_MODEL
-    const hasPersistedModelSelection = !!getInitialSettings().model
+    const cliStartupModel = thisCommand.getOptionValue('model')
+    const envStartupModel =
+      process.env.ANTHROPIC_MODEL ||
+      process.env.SHLOMO_MODEL ||
+      process.env.OPENAI_MODEL
+    const persistedStartupModel = getInitialSettings().model
+    const hasExplicitStartupModel = !!cliStartupModel || !!envStartupModel
 
-    let lmStudioModels: Awaited<ReturnType<typeof fetchLmStudioModelsAsync>> = []
+    let lmStudioModels
     try {
-      // Warm the local model cache on every startup so /model renders the full
-      // LM Studio inventory instead of falling back to the sync XHR path.
-      lmStudioModels = await fetchLmStudioModelsAsync()
-    } catch {
-      lmStudioModels = []
+      // Verify LM Studio is reachable on startup and warm the local model
+      // cache from the server-backed inventory for /model.
+      lmStudioModels = cacheLmStudioModels(await fetchLmStudioModels())
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Unable to reach the LM Studio server'
+      process.stderr.write(
+        chalk.red(
+          `Error: ${message}\nStart LM Studio and run \`lms server start --port ${getLmStudioPort()}\`, then launch Shlomo again.\n`,
+        ),
+      )
+      process.exit(1)
     }
 
-    // On first run, seed the startup model from LM Studio so Shlomo has a
-    // concrete local model to target. Once the user has selected a model,
-    // never overwrite that persisted choice with the first LM Studio entry.
-    if (!hasExplicitStartupModel && !hasPersistedModelSelection) {
-      const firstLmStudioModel = lmStudioModels[0]?.value;
-      if (typeof firstLmStudioModel === 'string' && firstLmStudioModel.length > 0) {
-        process.env.ANTHROPIC_MODEL = firstLmStudioModel;
+    if (lmStudioModels.length === 0) {
+      process.stderr.write(
+        chalk.red(
+          `Error: No chat models were returned by LM Studio at http://localhost:${getLmStudioPort()}/v1.\nLoad a model in LM Studio, then launch Shlomo again.\n`,
+        ),
+      )
+      process.exit(1)
+    }
+
+    const availableLmStudioModels = new Set(
+      lmStudioModels
+        .map(model => model.value)
+        .filter((value): value is string => typeof value === 'string' && value.length > 0),
+    )
+
+    const configuredStartupModel =
+      typeof cliStartupModel === 'string' && cliStartupModel !== 'default'
+        ? cliStartupModel
+        : envStartupModel || persistedStartupModel
+    const firstLmStudioModel = lmStudioModels[0]?.value
+
+    if (
+      typeof configuredStartupModel === 'string' &&
+      configuredStartupModel.length > 0 &&
+      !availableLmStudioModels.has(configuredStartupModel)
+    ) {
+      if (hasExplicitStartupModel) {
+        process.stderr.write(
+          chalk.red(
+            `Error: Model '${configuredStartupModel}' is not available from LM Studio.\nUse one of the models exposed by your LM Studio server instead.\n`,
+          ),
+        )
+        process.exit(1)
       }
+
+      if (typeof firstLmStudioModel === 'string' && firstLmStudioModel.length > 0) {
+        process.env.ANTHROPIC_MODEL = firstLmStudioModel
+      }
+    } else if (
+      !hasExplicitStartupModel &&
+      !persistedStartupModel &&
+      typeof firstLmStudioModel === 'string' &&
+      firstLmStudioModel.length > 0
+    ) {
+      // On first run, seed the startup model from LM Studio so Shlomo has a
+      // concrete local model to target.
+      process.env.ANTHROPIC_MODEL = firstLmStudioModel
     }
 
     // process.title on Windows sets the console title directly; on POSIX,

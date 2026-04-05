@@ -291,6 +291,22 @@ function mapLmStudioModelToOption(model: LmStudioModel): ModelOption {
   }
 }
 
+export function mapLmStudioModelsToOptions(
+  models: LmStudioModel[],
+): ModelOption[] {
+  return models
+    .filter(model => !isEmbeddingsModel(model))
+    .sort(compareLmStudioModels)
+    .map(mapLmStudioModelToOption)
+}
+
+export function cacheLmStudioModels(
+  models: LmStudioModel[],
+): ModelOption[] {
+  _lmStudioModelsCache = mapLmStudioModelsToOptions(models)
+  return _lmStudioModelsCache
+}
+
 /**
  * Fetch available models from LM Studio's /v1/models endpoint.
  * Results are cached for the session.
@@ -301,7 +317,8 @@ export function getLmStudioModels(): ModelOption[] {
   }
   try {
     const modelsUrl = `${getLmStudioRestBaseUrl()}/models`
-    const xhr = new XMLHttpRequest?.() ?? null
+    const xhr =
+      typeof XMLHttpRequest !== 'undefined' ? new XMLHttpRequest() : null
     if (xhr) {
       xhr.open('GET', modelsUrl, false) // synchronous
       xhr.setRequestHeader('Authorization', 'Bearer lmstudio')
@@ -331,16 +348,8 @@ export async function fetchLmStudioModelsAsync(): Promise<ModelOption[]> {
   if (_lmStudioModelsCache !== null) {
     return _lmStudioModelsCache
   }
-  try {
-    _lmStudioModelsCache = (await fetchLmStudioModels())
-      .filter(model => !isEmbeddingsModel(model))
-      .sort(compareLmStudioModels)
-      .map(mapLmStudioModelToOption)
-    return _lmStudioModelsCache!
-  } catch {
-    // Fall through
-  }
-  return _lmStudioModelsCache ?? []
+  _lmStudioModelsCache = mapLmStudioModelsToOptions(await fetchLmStudioModels())
+  return _lmStudioModelsCache
 }
 
 // Shlomo Code: model options from LM Studio
