@@ -2,6 +2,8 @@ import { getGlobalConfig } from './config.js'
 
 export const DEFAULT_LM_STUDIO_PORT = 1234
 export const DEFAULT_LM_STUDIO_API_KEY = 'lmstudio'
+export const LM_STUDIO_RESTART_RECOVERY_RETRIES = 3
+export const LM_STUDIO_RESTART_RECOVERY_DELAY_MS = 1500
 const PRECONFIG_ACCESS_ERROR = 'Config accessed before allowed.'
 
 function isPreConfigAccessError(error: unknown): boolean {
@@ -48,4 +50,19 @@ export function getLmStudioBaseUrl(): string {
 
 export function getLmStudioApiKey(): string {
   return DEFAULT_LM_STUDIO_API_KEY
+}
+
+export function isLmStudioRestartRecoveryErrorMessage(message: string): boolean {
+  const normalized = message.toLowerCase()
+
+  return (
+    (normalized.includes('failed to load llm engine from path') &&
+      normalized.includes('cannot find module') &&
+      normalized.includes('llm_engine_')) ||
+    normalized.includes('fetch failed') ||
+    normalized.includes('ecconnrefused') ||
+    normalized.includes('connection refused') ||
+    normalized.includes('other side closed') ||
+    normalized.includes('socket hang up')
+  )
 }

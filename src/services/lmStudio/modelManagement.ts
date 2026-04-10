@@ -1,7 +1,11 @@
 import {
   getLmStudioApiKey,
   getLmStudioBaseUrl,
+  isLmStudioRestartRecoveryErrorMessage,
+  LM_STUDIO_RESTART_RECOVERY_DELAY_MS,
+  LM_STUDIO_RESTART_RECOVERY_RETRIES,
 } from '../../utils/lmStudio.js'
+import { sleep } from '../../utils/sleep.js'
 
 export type LmStudioModelType = 'llm' | 'embedding'
 
@@ -259,19 +263,51 @@ async function requestLmStudioJson<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(`${getLmStudioRestBaseUrl()}${path}`, {
-    ...init,
-    headers: {
-      ...getLmStudioRequestHeaders(),
-      ...(init?.headers ?? {}),
-    },
-  })
+  let lastError: Error | null = null
 
-  if (!response.ok) {
-    throw new Error(await getErrorMessage(response))
+  for (
+    let attempt = 0;
+    attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES;
+    attempt++
+  ) {
+    try {
+      const response = await fetch(`${getLmStudioRestBaseUrl()}${path}`, {
+        ...init,
+        headers: {
+          ...getLmStudioRequestHeaders(),
+          ...(init?.headers ?? {}),
+        },
+      })
+
+      if (!response.ok) {
+        const message = await getErrorMessage(response)
+        if (
+          attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES - 1 &&
+          isLmStudioRestartRecoveryErrorMessage(message)
+        ) {
+          await sleep(LM_STUDIO_RESTART_RECOVERY_DELAY_MS)
+          continue
+        }
+        throw new Error(message)
+      }
+
+      return (await response.json()) as T
+    } catch (error) {
+      const wrappedError =
+        error instanceof Error ? error : new Error(String(error))
+      lastError = wrappedError
+      if (
+        attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES - 1 &&
+        isLmStudioRestartRecoveryErrorMessage(wrappedError.message)
+      ) {
+        await sleep(LM_STUDIO_RESTART_RECOVERY_DELAY_MS)
+        continue
+      }
+      throw wrappedError
+    }
   }
 
-  return (await response.json()) as T
+  throw lastError ?? new Error('Unknown LM Studio request failure')
 }
 
 export async function fetchLmStudioModels(): Promise<LmStudioModel[]> {

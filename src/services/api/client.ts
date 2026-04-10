@@ -11,7 +11,13 @@ import {
   refreshGcpCredentialsIfNeeded,
 } from 'src/utils/auth.js'
 import { getUserAgent } from 'src/utils/http.js'
-import { getLmStudioApiKey, getLmStudioBaseUrl } from 'src/utils/lmStudio.js'
+import {
+  getLmStudioApiKey,
+  getLmStudioBaseUrl,
+  isLmStudioRestartRecoveryErrorMessage,
+  LM_STUDIO_RESTART_RECOVERY_DELAY_MS,
+  LM_STUDIO_RESTART_RECOVERY_RETRIES,
+} from 'src/utils/lmStudio.js'
 import { getSmallFastModel } from 'src/utils/model/model.js'
 import {
   getAPIProvider,
@@ -30,6 +36,7 @@ import {
   getVertexRegionForModel,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
+import { sleep } from '../../utils/sleep.js'
 
 /**
  * Environment variables for different client types:
@@ -683,12 +690,50 @@ async function bridgeLmStudioMessagesRequest(
     }).join(' | ')}`,
   )
 
-  const response = await inner(requestUrl, {
-    ...init,
-    headers,
-    body: JSON.stringify(normalizedRequest),
-  })
-  return response
+  let lastError: Error | null = null
+
+  for (
+    let attempt = 0;
+    attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES;
+    attempt++
+  ) {
+    try {
+      const response = await inner(requestUrl, {
+        ...init,
+        headers,
+        body: JSON.stringify(normalizedRequest),
+      })
+
+      if (response.ok) {
+        return response
+      }
+
+      const responseText = await response.clone().text()
+      if (
+        attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES - 1 &&
+        isLmStudioRestartRecoveryErrorMessage(responseText)
+      ) {
+        await sleep(LM_STUDIO_RESTART_RECOVERY_DELAY_MS)
+        continue
+      }
+
+      return response
+    } catch (error) {
+      const wrappedError =
+        error instanceof Error ? error : new Error(String(error))
+      lastError = wrappedError
+      if (
+        attempt < LM_STUDIO_RESTART_RECOVERY_RETRIES - 1 &&
+        isLmStudioRestartRecoveryErrorMessage(wrappedError.message)
+      ) {
+        await sleep(LM_STUDIO_RESTART_RECOVERY_DELAY_MS)
+        continue
+      }
+      throw wrappedError
+    }
+  }
+
+  throw lastError ?? new Error('Unknown LM Studio request failure')
 }
 
 function buildFetch(
