@@ -234,29 +234,34 @@ export const ConfigTool = buildTool({
       setting === 'voiceEnabled' &&
       finalValue === true
     ) {
-      const { isVoiceModeEnabled } = await import(
+      const { isVoiceGrowthBookEnabled } = await import(
         '../../voice/voiceModeEnabled.js'
       )
-      if (!isVoiceModeEnabled()) {
-        const { isAnthropicAuthEnabled } = await import('../../utils/auth.js')
+      if (!isVoiceGrowthBookEnabled()) {
         return {
           data: {
             success: false,
-            error: !isAnthropicAuthEnabled()
-              ? 'Voice mode requires a Claude.ai account. Please run /login to sign in.'
-              : 'Voice mode is not available.',
+            error: 'Voice mode is not available.',
           },
         }
       }
-      const { isVoiceStreamAvailable } = await import(
-        '../../services/voiceStreamSTT.js'
+      const { validateSpeechToTextProvider } = await import(
+        '../../services/stt/provider.js'
       )
       const {
         checkRecordingAvailability,
         checkVoiceDependencies,
         requestMicrophonePermission,
       } = await import('../../services/voice.js')
-
+      const providerError = await validateSpeechToTextProvider()
+      if (providerError) {
+        return {
+          data: {
+            success: false,
+            error: providerError,
+          },
+        }
+      }
       const recording = await checkRecordingAvailability()
       if (!recording.available) {
         return {
@@ -265,15 +270,6 @@ export const ConfigTool = buildTool({
             error:
               recording.reason ??
               'Voice mode is not available in this environment.',
-          },
-        }
-      }
-      if (!isVoiceStreamAvailable()) {
-        return {
-          data: {
-            success: false,
-            error:
-              'Voice mode requires a Claude.ai account. Please run /login to sign in.',
           },
         }
       }

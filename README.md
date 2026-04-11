@@ -54,13 +54,21 @@ Then in LM Studio:
 2. Make sure the local server is running
 3. Leave it on port `1234` unless you plan to change it with `/port`
 
-### 3. Install dependencies
+### 3. Configure voice mode (optional)
+
+Voice mode is available in this fork through `/voice`.
+
+- Voice transcription currently runs through OpenAI Whisper, not LM Studio
+- Set `OPENAI_API_KEY` before launching Shlomo if you want voice input
+- If `OPENAI_API_KEY` is missing or invalid, `/voice` will return `Please configure OPENAI_API_KEY for voice transcription.`
+
+### 4. Install dependencies
 
 ```bash
 bun install
 ```
 
-### 4. Build Shlomo
+### 5. Build Shlomo
 
 ```bash
 bun run build
@@ -72,7 +80,7 @@ This produces:
 dist/shlomo
 ```
 
-### 5. Run it
+### 6. Run it
 
 ```bash
 ./dist/shlomo
@@ -123,6 +131,12 @@ Run a one-shot prompt:
 
 ```bash
 ./dist/shlomo -p "explain this repository"
+```
+
+Toggle voice mode:
+
+```text
+/voice
 ```
 
 Unload all currently loaded LM Studio models from memory:

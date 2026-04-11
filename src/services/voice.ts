@@ -6,10 +6,30 @@
 
 import { type ChildProcess, spawn, spawnSync } from 'child_process'
 import { readFile } from 'fs/promises'
+import { createRequire } from 'module'
 import { logForDebugging } from '../utils/debug.js'
 import { isEnvTruthy, isRunningOnHomespace } from '../utils/envUtils.js'
 import { logError } from '../utils/log.js'
 import { getPlatform } from '../utils/platform.js'
+
+type AudioNapi = {
+  isNativeAudioAvailable(): boolean
+  startNativeRecording(
+    onData: (data: Buffer) => void,
+    onEnd: () => void,
+  ): boolean
+  stopNativeRecording(): void
+  isNativeRecordingActive(): boolean
+}
+
+const audioNapiFallback: AudioNapi = {
+  isNativeAudioAvailable: () => false,
+  startNativeRecording: () => false,
+  stopNativeRecording: () => {},
+  isNativeRecordingActive: () => false,
+}
+
+const require = createRequire(import.meta.url)
 
 // Lazy-loaded native audio module. audio-capture.node links against
 // CoreAudio.framework + AudioUnit.framework; dlopen is synchronous and
@@ -17,20 +37,28 @@ import { getPlatform } from '../utils/platform.js'
 // (post-wake, post-boot). Load happens on first voice keypress — no
 // preload, because there's no way to make dlopen non-blocking and a
 // startup freeze is worse than a first-press delay.
-type AudioNapi = typeof import('audio-capture-napi')
 let audioNapi: AudioNapi | null = null
 let audioNapiPromise: Promise<AudioNapi> | null = null
 
 function loadAudioNapi(): Promise<AudioNapi> {
   audioNapiPromise ??= (async () => {
     const t0 = Date.now()
-    const mod = await import('audio-capture-napi')
-    // vendor/audio-capture-src/index.ts defers require(...node) until the
-    // first function call — trigger it here so timing reflects real cost.
-    mod.isNativeAudioAvailable()
-    audioNapi = mod
+    try {
+      const mod = require('audio-capture-napi') as AudioNapi
+      // vendor/audio-capture-src/index.ts defers require(...node) until the
+      // first function call - trigger it here so timing reflects real cost.
+      mod.isNativeAudioAvailable()
+      audioNapi = mod
+    } catch (error) {
+      logForDebugging(
+        `[voice] audio-capture-napi unavailable, using fallbacks: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      )
+      audioNapi = audioNapiFallback
+    }
     logForDebugging(`[voice] audio-capture-napi loaded in ${Date.now() - t0}ms`)
-    return mod
+    return audioNapi
   })()
   return audioNapiPromise
 }

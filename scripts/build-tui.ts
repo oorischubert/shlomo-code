@@ -21,6 +21,8 @@ const macro = {
   VERSION_CHANGELOG: '',
 }
 
+const buildFeatures = ['VOICE_MODE']
+
 mkdirSync(dirname(outputPath), { recursive: true })
 
 if (compile) {
@@ -37,6 +39,8 @@ if (compile) {
         resolve('src/entrypoints/cli.tsx'),
         '--define',
         `MACRO=${JSON.stringify(macro)}`,
+        '--feature',
+        buildFeatures[0]!,
         '--define',
         `process.env.USER_TYPE=${JSON.stringify('external')}`,
         '--define',
@@ -69,6 +73,7 @@ if (compile) {
       'process.env.USER_TYPE': JSON.stringify('external'),
       'process.env.IS_DEMO': 'false',
     },
+    features: buildFeatures,
   } as any)
 
   if (!result.success) {
