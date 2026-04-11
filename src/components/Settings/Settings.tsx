@@ -87,29 +87,31 @@ export function Settings(t0) {
     t5 = $[11];
   }
   let t6;
-  if ($[12] === Symbol.for("react.memo_cache_sentinel")) {
-    t6 = <Tab key="usage" title="Usage"><Usage /></Tab>;
-    $[12] = t6;
+  if ($[12] !== context) {
+    t6 = <Tab key="usage" title="Usage"><Usage context={context} /></Tab>;
+    $[12] = context;
+    $[13] = t6;
   } else {
-    t6 = $[12];
+    t6 = $[13];
   }
   let t7;
-  if ($[13] !== contentHeight) {
+  if ($[14] !== contentHeight) {
     t7 = false ? [<Tab key="gates" title="Gates"><Gates onOwnsEscChange={setGatesOwnsEsc} contentHeight={contentHeight} /></Tab>] : [];
-    $[13] = contentHeight;
-    $[14] = t7;
+    $[14] = contentHeight;
+    $[15] = t7;
   } else {
-    t7 = $[14];
+    t7 = $[15];
   }
   let t8;
-  if ($[15] !== t4 || $[16] !== t5 || $[17] !== t7) {
+  if ($[16] !== t4 || $[17] !== t5 || $[18] !== t6 || $[19] !== t7) {
     t8 = [t4, t5, t6, ...t7];
-    $[15] = t4;
-    $[16] = t5;
-    $[17] = t7;
-    $[18] = t8;
+    $[16] = t4;
+    $[17] = t5;
+    $[18] = t6;
+    $[19] = t7;
+    $[20] = t8;
   } else {
-    t8 = $[18];
+    t8 = $[20];
   }
   const tabs = t8;
   const t9 = defaultTab !== "Config" && defaultTab !== "Gates";

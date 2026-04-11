@@ -101,9 +101,35 @@ type LmStudioReasoningSupport = {
 }
 
 const lmStudioReasoningSupportCache = new Map<string, LmStudioReasoningSupport>()
+const lmStudioModelCache = new Map<string, LmStudioModel>()
 
 export function getLmStudioRestBaseUrl(): string {
   return `${getLmStudioBaseUrl().replace(/\/v1\/?$/, '')}/api/v1`
+}
+
+function normalizeModelCacheKey(value: string): string {
+  return value.trim().toLowerCase()
+}
+
+function cacheLmStudioModels(models: LmStudioModel[]): void {
+  lmStudioModelCache.clear()
+
+  for (const model of models) {
+    lmStudioModelCache.set(normalizeModelCacheKey(model.key), model)
+
+    if (model.display_name) {
+      lmStudioModelCache.set(
+        normalizeModelCacheKey(model.display_name),
+        model,
+      )
+    }
+  }
+}
+
+function getPositiveInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : undefined
 }
 
 function normalizeReasoningLevels(value: unknown): string[] {
@@ -235,6 +261,33 @@ export function getCachedLmStudioReasoningSupport(
   return lmStudioReasoningSupportCache.get(model.toLowerCase())
 }
 
+export function getCachedLmStudioModel(
+  model: string,
+): LmStudioModel | undefined {
+  return lmStudioModelCache.get(normalizeModelCacheKey(model))
+}
+
+export function getCachedLmStudioContextWindow(
+  model: string,
+): number | undefined {
+  const metadata = getCachedLmStudioModel(model)
+  if (!metadata) {
+    return undefined
+  }
+
+  for (const instance of metadata.loaded_instances ?? []) {
+    const loadedContext = getPositiveInteger(instance.config?.context_length)
+    if (loadedContext) {
+      return loadedContext
+    }
+  }
+
+  return (
+    getPositiveInteger(metadata.context_length) ??
+    getPositiveInteger(metadata.max_context_length)
+  )
+}
+
 function getLmStudioRequestHeaders(): HeadersInit {
   return {
     Authorization: `Bearer ${getLmStudioApiKey()}`,
@@ -313,6 +366,7 @@ async function requestLmStudioJson<T>(
 export async function fetchLmStudioModels(): Promise<LmStudioModel[]> {
   const data = await requestLmStudioJson<LmStudioModelsResponse>('/models')
   const models = Array.isArray(data.models) ? data.models : []
+  cacheLmStudioModels(models)
   updateLmStudioReasoningSupportCache(models)
   return models
 }
@@ -379,6 +433,14 @@ export async function unloadAllLmStudioModels(): Promise<string[]> {
   return unloadedInstanceIds
 }
 
+async function refreshLmStudioModelsBestEffort(): Promise<void> {
+  try {
+    await fetchLmStudioModels()
+  } catch {
+    // Keep the successful user action even if the metadata refresh misses once.
+  }
+}
+
 async function waitForInstancesToUnload(instanceIds: string[]): Promise<void> {
   if (instanceIds.length === 0) {
     return
@@ -437,6 +499,7 @@ export async function switchLmStudioModel(
   await waitForInstancesToUnload(unloadedInstanceIds)
 
   if (selectedInstances.length > 0) {
+    await refreshLmStudioModelsBestEffort()
     return {
       modelKey,
       displayName,
@@ -446,11 +509,14 @@ export async function switchLmStudioModel(
     }
   }
 
+  const loadedInstanceId = await loadLmStudioModel(modelKey)
+  await refreshLmStudioModelsBestEffort()
+
   return {
     modelKey,
     displayName,
     unloadedInstanceIds,
-    loadedInstanceId: await loadLmStudioModel(modelKey),
+    loadedInstanceId,
     alreadyLoaded: false,
   }
 }

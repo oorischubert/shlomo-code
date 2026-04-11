@@ -632,22 +632,7 @@ export function Config({
       });
     }
   }] : []),
-  // autoUpdates setting is hidden - use DISABLE_AUTOUPDATER env var to control
-  autoUpdaterDisabledReason ? {
-    id: 'autoUpdatesChannel',
-    label: 'Auto-update channel',
-    value: 'disabled',
-    type: 'managedEnum' as const,
-    onChange() {}
-  } : {
-    id: 'autoUpdatesChannel',
-    label: 'Auto-update channel',
-    value: settingsData?.autoUpdatesChannel ?? 'latest',
-    type: 'managedEnum' as const,
-    onChange() {
-      // Handled via toggleSetting -> 'ChannelDowngrade'
-    }
-  }, {
+  {
     id: 'theme',
     label: 'Theme',
     value: themeSetting,

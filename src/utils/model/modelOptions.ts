@@ -274,6 +274,16 @@ function compareLmStudioModels(a: LmStudioModel, b: LmStudioModel): number {
   return a.key.localeCompare(b.key)
 }
 
+function formatLmStudioContextLength(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(value % 1_000_000 === 0 ? 0 : 1)}M`
+  }
+  if (value >= 1_000) {
+    return `${(value / 1_000).toFixed(value % 1_000 === 0 ? 0 : 1)}k`
+  }
+  return String(value)
+}
+
 function mapLmStudioModelToOption(model: LmStudioModel): ModelOption {
   const isLoaded = (model.loaded_instances?.length ?? 0) > 0
   const descriptionParts = [
@@ -282,6 +292,32 @@ function mapLmStudioModelToOption(model: LmStudioModel): ModelOption {
 
   if (model.display_name && model.display_name !== model.key) {
     descriptionParts.push(model.display_name)
+  }
+
+  const loadedContextLength = model.loaded_instances
+    ?.map(instance => instance.config?.context_length)
+    .find(
+      (value): value is number =>
+        typeof value === 'number' && Number.isFinite(value) && value > 0,
+    )
+
+  if (typeof loadedContextLength === 'number') {
+    const effectiveContext = formatLmStudioContextLength(loadedContextLength)
+    const maxContext =
+      typeof model.max_context_length === 'number' &&
+      Number.isFinite(model.max_context_length) &&
+      model.max_context_length > loadedContextLength
+        ? ` (${formatLmStudioContextLength(model.max_context_length)} max)`
+        : ''
+    descriptionParts.push(`${effectiveContext} context${maxContext}`)
+  } else if (
+    typeof model.max_context_length === 'number' &&
+    Number.isFinite(model.max_context_length) &&
+    model.max_context_length > 0
+  ) {
+    descriptionParts.push(
+      `${formatLmStudioContextLength(model.max_context_length)} max context`,
+    )
   }
 
   return {

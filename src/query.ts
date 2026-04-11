@@ -6,7 +6,6 @@ import type {
 import type { CanUseToolFn } from './hooks/useCanUseTool.js'
 import { FallbackTriggeredError } from './services/api/withRetry.js'
 import {
-  calculateTokenWarningState,
   isAutoCompactEnabled,
   type AutoCompactTrackingState,
 } from './services/compact/autoCompact.js'
@@ -84,7 +83,6 @@ import {
 import {
   doesMostRecentAssistantMessageExceed200k,
   finalContextTokensFromLastResponse,
-  tokenCountWithEstimation,
 } from './utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from './utils/context.js'
 import { getFeatureValue_CACHED_MAY_BE_STALE } from './services/analytics/growthbook.js'
@@ -601,17 +599,9 @@ async function* queryLoop(
     // Also skip for compact/session_memory queries — these are forked agents that
     // inherit the full conversation and would deadlock if blocked here (the compact
     // agent needs to run to REDUCE the token count).
-    // Also skip when reactive compact is enabled and automatic compaction is
-    // allowed — the preempt's synthetic error returns before the API call,
-    // so reactive compact would never see a prompt-too-long to react to.
-    // Widened to walrus so RC can act as fallback when proactive fails.
-    //
-    // Same skip for context-collapse: its recoverFromOverflow drains
-    // staged collapses on a REAL API 413, then falls through to
-    // reactiveCompact. A synthetic preempt here would return before the
-    // API call and starve both recovery paths. The isAutoCompactEnabled()
-    // conjunct preserves the user's explicit "no automatic anything"
-    // config — if they set DISABLE_AUTO_COMPACT, they get the preempt.
+    // Context-collapse still owns its own overflow recovery, but we no longer
+    // synthesize prompt-too-long locally from token estimates. Hard provider
+    // rejections drive reactive recovery instead.
     let collapseOwnsIt = false
     if (feature('CONTEXT_COLLAPSE')) {
       collapseOwnsIt =
@@ -625,28 +615,6 @@ async function* queryLoop(
     // it predates the experiment and is already the control-arm baseline.
     const mediaRecoveryEnabled =
       reactiveCompact?.isReactiveCompactEnabled() ?? false
-    if (
-      !compactionResult &&
-      querySource !== 'compact' &&
-      querySource !== 'session_memory' &&
-      !(
-        reactiveCompact?.isReactiveCompactEnabled() && isAutoCompactEnabled()
-      ) &&
-      !collapseOwnsIt
-    ) {
-      const { isAtBlockingLimit } = calculateTokenWarningState(
-        tokenCountWithEstimation(messagesForQuery) - snipTokensFreed,
-        toolUseContext.options.mainLoopModel,
-      )
-      if (isAtBlockingLimit) {
-        yield createAssistantAPIErrorMessage({
-          content: PROMPT_TOO_LONG_ERROR_MESSAGE,
-          error: 'invalid_request',
-        })
-        return { reason: 'blocking_limit' }
-      }
-    }
-
     let attemptWithFallback = true
 
     queryCheckpoint('query_api_loop_start')

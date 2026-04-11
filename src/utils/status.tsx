@@ -209,12 +209,6 @@ export function buildAccountProperties(): Property[] {
       value: `${accountInfo.subscription} Account`
     });
   }
-  if (accountInfo.tokenSource) {
-    properties.push({
-      label: 'Auth token',
-      value: accountInfo.tokenSource
-    });
-  }
   if (accountInfo.apiKeySource) {
     properties.push({
       label: 'API key',

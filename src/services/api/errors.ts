@@ -86,13 +86,31 @@ export function parsePromptTooLongTokenCounts(rawMessage: string): {
   actualTokens: number | undefined
   limitTokens: number | undefined
 } {
-  const match = rawMessage.match(
+  const anthropicMatch = rawMessage.match(
     /prompt is too long[^0-9]*(\d+)\s*tokens?\s*>\s*(\d+)/i,
   )
-  return {
-    actualTokens: match ? parseInt(match[1]!, 10) : undefined,
-    limitTokens: match ? parseInt(match[2]!, 10) : undefined,
+  if (anthropicMatch) {
+    return {
+      actualTokens: parseInt(anthropicMatch[1]!, 10),
+      limitTokens: parseInt(anthropicMatch[2]!, 10),
+    }
   }
+
+  const lmStudioMatch = rawMessage.match(/n_keep:\s*(\d+)\s*>=\s*n_ctx:\s*(\d+)/i)
+  return {
+    actualTokens: lmStudioMatch ? parseInt(lmStudioMatch[1]!, 10) : undefined,
+    limitTokens: lmStudioMatch ? parseInt(lmStudioMatch[2]!, 10) : undefined,
+  }
+}
+
+function isPromptTooLongErrorText(rawMessage: string): boolean {
+  const normalized = rawMessage.toLowerCase()
+
+  return (
+    normalized.includes('prompt is too long') ||
+    normalized.includes('greater than the context length') ||
+    (normalized.includes('n_keep:') && normalized.includes('n_ctx:'))
+  )
 }
 
 /**
@@ -561,7 +579,7 @@ export function getAssistantMessageFromError(
   // Use case-insensitive check since Vertex returns "Prompt is too long" (capitalized)
   if (
     error instanceof Error &&
-    error.message.toLowerCase().includes('prompt is too long')
+    isPromptTooLongErrorText(error.message)
   ) {
     // Content stays generic (UI matches on exact string). The raw error with
     // token counts goes into errorDetails — reactive compact's retry loop
@@ -1010,9 +1028,7 @@ export function classifyAPIError(error: unknown): string {
   // Prompt/content size errors
   if (
     error instanceof Error &&
-    error.message
-      .toLowerCase()
-      .includes(PROMPT_TOO_LONG_ERROR_MESSAGE.toLowerCase())
+    isPromptTooLongErrorText(error.message)
   ) {
     return 'prompt_too_long'
   }

@@ -1,7 +1,7 @@
 import { c as _c } from "react/compiler-runtime";
 import { feature } from 'bun:bundle';
 import * as React from 'react';
-import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { type Notification, useNotifications } from 'src/context/notifications.js';
 import { logEvent } from 'src/services/analytics/index.js';
 import { useAppState } from 'src/state/AppState.js';
@@ -9,11 +9,9 @@ import { useVoiceState } from '../../context/voice.js';
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js';
 import { useIdeConnectionStatus } from '../../hooks/useIdeConnectionStatus.js';
 import type { IDESelection } from '../../hooks/useIdeSelection.js';
-import { useMainLoopModel } from '../../hooks/useMainLoopModel.js';
 import { useVoiceEnabled } from '../../hooks/useVoiceEnabled.js';
 import { Box, Text } from '../../ink.js';
 import { useClaudeAiLimits } from '../../services/claudeAiLimitsHook.js';
-import { calculateTokenWarningState } from '../../services/compact/autoCompact.js';
 import type { MCPServerConnection } from '../../services/mcp/types.js';
 import type { Message } from '../../types/message.js';
 import { getApiKeyHelperElapsedMs, getConfiguredApiKeyHelper, getSubscriptionType } from '../../utils/auth.js';
@@ -23,14 +21,11 @@ import { isEnvTruthy } from '../../utils/envUtils.js';
 import { formatDuration } from '../../utils/format.js';
 import { setEnvHookNotifier } from '../../utils/hooks/fileChangedWatcher.js';
 import { toIDEDisplayName } from '../../utils/ide.js';
-import { getMessagesAfterCompactBoundary } from '../../utils/messages.js';
-import { tokenCountFromLastAPIResponse } from '../../utils/tokens.js';
 import { AutoUpdaterWrapper } from '../AutoUpdaterWrapper.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 import { IdeStatusIndicator } from '../IdeStatusIndicator.js';
 import { MemoryUsageIndicator } from '../MemoryUsageIndicator.js';
 import { SentryErrorBoundary } from '../SentryErrorBoundary.js';
-import { TokenWarning } from '../TokenWarning.js';
 import { SandboxPromptFooterHint } from './SandboxPromptFooterHint.js';
 
 /* eslint-disable @typescript-eslint/no-require-imports */
@@ -60,7 +55,7 @@ export function Notifications(t0) {
     debug,
     isAutoUpdating,
     verbose,
-    messages,
+    messages: _messages,
     onAutoUpdaterResult,
     onChangeIsUpdating,
     ideSelection,
@@ -70,27 +65,6 @@ export function Notifications(t0) {
   } = t0;
   const isInputWrapped = t1 === undefined ? false : t1;
   const isNarrow = t2 === undefined ? false : t2;
-  let t3;
-  if ($[0] !== messages) {
-    const messagesForTokenCount = getMessagesAfterCompactBoundary(messages);
-    t3 = tokenCountFromLastAPIResponse(messagesForTokenCount);
-    $[0] = messages;
-    $[1] = t3;
-  } else {
-    t3 = $[1];
-  }
-  const tokenUsage = t3;
-  const mainLoopModel = useMainLoopModel();
-  let t4;
-  if ($[2] !== mainLoopModel || $[3] !== tokenUsage) {
-    t4 = calculateTokenWarningState(tokenUsage, mainLoopModel);
-    $[2] = mainLoopModel;
-    $[3] = tokenUsage;
-    $[4] = t4;
-  } else {
-    t4 = $[4];
-  }
-  const isShowingCompactMessage = t4.isAboveWarningThreshold;
   const {
     status: ideStatus
   } = useIdeConnectionStatus(mcpClients);
@@ -144,7 +118,7 @@ export function Notifications(t0) {
     t8 = $[9];
   }
   const editor = t8;
-  const shouldShowExternalEditorHint = isInputWrapped && !isShowingCompactMessage && apiKeyStatus !== "invalid" && apiKeyStatus !== "missing" && editor !== undefined;
+  const shouldShowExternalEditorHint = isInputWrapped && apiKeyStatus !== "invalid" && apiKeyStatus !== "missing" && editor !== undefined;
   let t10;
   let t9;
   if ($[10] !== addNotification || $[11] !== removeNotification || $[12] !== shouldShowExternalEditorHint) {
@@ -175,22 +149,19 @@ export function Notifications(t0) {
   const t11 = isNarrow ? "flex-start" : "flex-end";
   const t12 = isInOverageMode ?? false;
   let t13;
-  if ($[15] !== apiKeyStatus || $[16] !== autoUpdaterResult || $[17] !== debug || $[18] !== ideSelection || $[19] !== isAutoUpdating || $[20] !== isShowingCompactMessage || $[21] !== mainLoopModel || $[22] !== mcpClients || $[23] !== notifications || $[24] !== onAutoUpdaterResult || $[25] !== onChangeIsUpdating || $[26] !== shouldShowAutoUpdater || $[27] !== t12 || $[28] !== tokenUsage || $[29] !== verbose) {
-    t13 = <NotificationContent ideSelection={ideSelection} mcpClients={mcpClients} notifications={notifications} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} tokenUsage={tokenUsage} mainLoopModel={mainLoopModel} shouldShowAutoUpdater={shouldShowAutoUpdater} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} isShowingCompactMessage={isShowingCompactMessage} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} />;
+  if ($[15] !== apiKeyStatus || $[16] !== autoUpdaterResult || $[17] !== debug || $[18] !== ideSelection || $[19] !== isAutoUpdating || $[22] !== mcpClients || $[23] !== notifications || $[24] !== onAutoUpdaterResult || $[25] !== onChangeIsUpdating || $[26] !== shouldShowAutoUpdater || $[27] !== t12 || $[29] !== verbose) {
+    t13 = <NotificationContent ideSelection={ideSelection} mcpClients={mcpClients} notifications={notifications} isInOverageMode={t12} isTeamOrEnterprise={isTeamOrEnterprise} apiKeyStatus={apiKeyStatus} debug={debug} verbose={verbose} shouldShowAutoUpdater={shouldShowAutoUpdater} autoUpdaterResult={autoUpdaterResult} isAutoUpdating={isAutoUpdating} onAutoUpdaterResult={onAutoUpdaterResult} onChangeIsUpdating={onChangeIsUpdating} />;
     $[15] = apiKeyStatus;
     $[16] = autoUpdaterResult;
     $[17] = debug;
     $[18] = ideSelection;
     $[19] = isAutoUpdating;
-    $[20] = isShowingCompactMessage;
-    $[21] = mainLoopModel;
     $[22] = mcpClients;
     $[23] = notifications;
     $[24] = onAutoUpdaterResult;
     $[25] = onChangeIsUpdating;
     $[26] = shouldShowAutoUpdater;
     $[27] = t12;
-    $[28] = tokenUsage;
     $[29] = verbose;
     $[30] = t13;
   } else {
@@ -222,12 +193,9 @@ function NotificationContent({
   apiKeyStatus,
   debug,
   verbose,
-  tokenUsage,
-  mainLoopModel,
   shouldShowAutoUpdater,
   autoUpdaterResult,
   isAutoUpdating,
-  isShowingCompactMessage,
   onAutoUpdaterResult,
   onChangeIsUpdating
 }: {
@@ -242,12 +210,9 @@ function NotificationContent({
   apiKeyStatus: VerificationStatus;
   debug: boolean;
   verbose: boolean;
-  tokenUsage: number;
-  mainLoopModel: string;
   shouldShowAutoUpdater: boolean;
   autoUpdaterResult: AutoUpdaterResult | null;
   isAutoUpdating: boolean;
-  isShowingCompactMessage: boolean;
   onAutoUpdaterResult: (result: AutoUpdaterResult) => void;
   onChangeIsUpdating: (isUpdating: boolean) => void;
 }): ReactNode {
@@ -274,10 +239,6 @@ function NotificationContent({
   const voiceError = feature('VOICE_MODE') ?
   // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
   useVoiceState(s_0 => s_0.voiceError) : null;
-  const isBriefOnly = feature('KAIROS') || feature('KAIROS_BRIEF') ?
-  // biome-ignore lint/correctness/useHookAtTopLevel: feature() is a compile-time constant
-  useAppState(s_1 => s_1.isBriefOnly) : false;
-
   // When voice is actively recording or processing, replace all
   // notifications with just the voice indicator.
   if (feature('VOICE_MODE') && voiceEnabled && (voiceState === 'recording' || voiceState === 'processing')) {
@@ -313,13 +274,7 @@ function NotificationContent({
             Debug mode
           </Text>
         </Box>}
-      {apiKeyStatus !== 'invalid' && apiKeyStatus !== 'missing' && verbose && <Box>
-          <Text dimColor wrap="truncate">
-            {tokenUsage} tokens
-          </Text>
-        </Box>}
-      {!isBriefOnly && <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel} />}
-      {shouldShowAutoUpdater && <AutoUpdaterWrapper verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} isUpdating={isAutoUpdating} onChangeIsUpdating={onChangeIsUpdating} showSuccessMessage={!isShowingCompactMessage} />}
+      {shouldShowAutoUpdater && <AutoUpdaterWrapper verbose={verbose} onAutoUpdaterResult={onAutoUpdaterResult} autoUpdaterResult={autoUpdaterResult} isUpdating={isAutoUpdating} onChangeIsUpdating={onChangeIsUpdating} showSuccessMessage={true} />}
       {feature('VOICE_MODE') ? voiceEnabled && voiceError && <Box>
               <Text color="error" wrap="truncate">
                 {voiceError}

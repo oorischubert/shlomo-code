@@ -1,5 +1,6 @@
 // biome-ignore-all assist/source/organizeImports: ANT-ONLY import markers must not be reordered
 import { CONTEXT_1M_BETA_HEADER } from '../constants/betas.js'
+import { getCachedLmStudioContextWindow } from '../services/lmStudio/modelManagement.js'
 import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getCanonicalName } from './model/model.js'
@@ -64,6 +65,11 @@ export function getContextWindowForModel(
     if (!isNaN(override) && override > 0) {
       return override
     }
+  }
+
+  const lmStudioContextWindow = getCachedLmStudioContextWindow(model)
+  if (lmStudioContextWindow) {
+    return lmStudioContextWindow
   }
 
   // [1m] suffix — explicit client-side opt-in, respected over all detection

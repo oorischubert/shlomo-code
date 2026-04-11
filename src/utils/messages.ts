@@ -4617,7 +4617,11 @@ export function isCompactBoundaryMessage(
  */
 export function findLastCompactBoundaryIndex<
   T extends Message | NormalizedMessage,
->(messages: T[]): number {
+>(messages: readonly T[] | undefined): number {
+  if (!messages || messages.length === 0) {
+    return -1
+  }
+
   // Scan backwards to find the most recent compact boundary
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]
@@ -4642,7 +4646,11 @@ export function findLastCompactBoundaryIndex<
  */
 export function getMessagesAfterCompactBoundary<
   T extends Message | NormalizedMessage,
->(messages: T[], options?: { includeSnipped?: boolean }): T[] {
+>(messages: readonly T[] | undefined, options?: { includeSnipped?: boolean }): T[] {
+  if (!messages || messages.length === 0) {
+    return []
+  }
+
   const boundaryIndex = findLastCompactBoundaryIndex(messages)
   const sliced = boundaryIndex === -1 ? messages : messages.slice(boundaryIndex)
   if (!options?.includeSnipped && feature('HISTORY_SNIP')) {
