@@ -107,6 +107,19 @@ export type CompanionBones = {
   stats: Record<StatName, number>
 }
 
+// Buddy accent colors — picked randomly at hatch, persisted forever.
+export const BUDDY_COLORS = [
+  'rainbow_red',
+  'rainbow_orange',
+  'rainbow_green',
+  'rainbow_blue',
+  'rainbow_indigo',
+] as const
+export type BuddyColor = (typeof BUDDY_COLORS)[number]
+
+export const CHATTINESS_LEVELS = ['quiet', 'normal', 'chatty'] as const
+export type Chattiness = (typeof CHATTINESS_LEVELS)[number]
+
 // Model-generated soul — stored in config after first hatch
 export type CompanionSoul = {
   name: string
@@ -116,12 +129,20 @@ export type CompanionSoul = {
 export type Companion = CompanionBones &
   CompanionSoul & {
     hatchedAt: number
+    color?: BuddyColor
+    chattiness?: Chattiness
   }
 
 // What actually persists in config. Bones are regenerated from hash(userId)
 // on every read so species renames don't break stored companions and users
-// can't edit their way to a legendary.
-export type StoredCompanion = CompanionSoul & { hatchedAt: number }
+// can't edit their way to a legendary. Species is stored so re-hatching
+// gives a different creature each time.
+export type StoredCompanion = CompanionSoul & {
+  hatchedAt: number
+  color?: BuddyColor
+  species?: Species
+  chattiness?: Chattiness
+}
 
 export const RARITY_WEIGHTS = {
   common: 60,

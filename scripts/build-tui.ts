@@ -21,7 +21,7 @@ const macro = {
   VERSION_CHANGELOG: '',
 }
 
-const buildFeatures = ['VOICE_MODE']
+const buildFeatures = ['VOICE_MODE', 'BUDDY']
 
 mkdirSync(dirname(outputPath), { recursive: true })
 
@@ -39,8 +39,7 @@ if (compile) {
         resolve('src/entrypoints/cli.tsx'),
         '--define',
         `MACRO=${JSON.stringify(macro)}`,
-        '--feature',
-        buildFeatures[0]!,
+        ...buildFeatures.flatMap(f => ['--feature', f]),
         '--define',
         `process.env.USER_TYPE=${JSON.stringify('external')}`,
         '--define',

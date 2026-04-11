@@ -201,6 +201,18 @@ Reduced or intentionally omitted:
 - Updater/install flows from the upstream product
 - Features that rely on APIs local LM Studio models do not support
 
+## Buddy
+
+Shlomo ships with a buddy system — a small ASCII companion that sits beside your input and occasionally reacts to your coding sessions in a speech bubble.
+
+```text
+/buddy          — hatch a new buddy (or wake them up if hidden)
+/buddy pet      — pet your buddy
+/buddy hide     — hide your buddy
+```
+
+Each buddy gets a random species, a goofy name, a one-line personality, and an accent color. Buddies are purely decorative — they watch the conversation and sometimes comment, but they aren't addressable and don't affect your workflow.
+
 ## Troubleshooting
 
 If Shlomo starts but does not answer:

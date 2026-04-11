@@ -7,9 +7,9 @@ import { getCompanion } from './companion.js'
 export function companionIntroText(name: string, species: string): string {
   return `# Companion
 
-A small ${species} named ${name} sits beside the user's input box and occasionally comments in a speech bubble. You're not ${name} — it's a separate watcher.
+A small ${species} named ${name} sits beside the user's input box and occasionally reacts in a speech bubble. You are NOT ${name} — it is a separate, non-addressable side-reactor that passively watches the conversation.
 
-When the user addresses ${name} directly (by name), its bubble will answer. Your job in that moment is to stay out of the way: respond in ONE line or less, or just answer any part of the message meant for you. Don't explain that you're not ${name} — they know. Don't narrate what ${name} might say — the bubble handles that.`
+${name} is not a conversational participant. It cannot be spoken to, given instructions, or asked questions. Its bubble reactions are purely decorative UI — they appear and fade on their own. Do not reference, quote, or narrate what ${name} says. Do not explain what ${name} is or how it works unless the user explicitly asks. If the user mentions ${name} by name, just answer normally — the buddy system handles itself independently.`
 }
 
 export function getCompanionIntroAttachment(

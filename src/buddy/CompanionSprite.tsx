@@ -58,7 +58,7 @@ function SpeechBubble(t0) {
   let t6;
   if ($[0] !== color || $[1] !== fading || $[2] !== text) {
     const lines = wrap(text, 30);
-    borderColor = fading ? "inactive" : color;
+    borderColor = color;
     T0 = Box;
     t1 = "column";
     t2 = "round";
@@ -67,7 +67,7 @@ function SpeechBubble(t0) {
     t5 = 34;
     let t7;
     if ($[11] !== fading) {
-      t7 = (l, i) => <Text key={i} italic={true} dimColor={!fading} color={fading ? "inactive" : undefined}>{l}</Text>;
+      t7 = (l, i) => <Text key={i} italic={true} dimColor={!fading}>{l}</Text>;
       $[11] = fading;
       $[12] = t7;
     } else {
@@ -215,7 +215,7 @@ export function CompanionSprite(): React.ReactNode {
   if (!feature('BUDDY')) return null;
   const companion = getCompanion();
   if (!companion || getGlobalConfig().companionMuted) return null;
-  const color = RARITY_COLORS[companion.rarity];
+  const color = companion.color ?? RARITY_COLORS[companion.rarity];
   const colWidth = spriteColWidth(stringWidth(companion.name));
   const bubbleAge = reaction ? tick - lastSpokeTick.current : 0;
   const fading = reaction !== undefined && bubbleAge >= BUBBLE_SHOW - FADE_WINDOW;
@@ -229,7 +229,7 @@ export function CompanionSprite(): React.ReactNode {
     const label = quip ? `"${quip}"` : focused ? ` ${companion.name} ` : companion.name;
     return <Box paddingX={1} alignSelf="flex-end">
         <Text>
-          {petting && <Text color="autoAccept">{figures.heart} </Text>}
+          {petting && <Text color={color}>{figures.heart} </Text>}
           <Text bold color={color}>
             {renderFace(companion)}
           </Text>{' '}
@@ -264,7 +264,7 @@ export function CompanionSprite(): React.ReactNode {
   // sprite doesn't jump up when selected. flexShrink=0 stops the
   // inline-bubble row wrapper from squeezing the sprite to fit.
   const spriteColumn = <Box flexDirection="column" flexShrink={0} alignItems="center" width={colWidth}>
-      {sprite.map((line, i) => <Text key={i} color={i === 0 && heartFrame ? 'autoAccept' : color}>
+      {sprite.map((line, i) => <Text key={i} color={color}>
           {line}
         </Text>)}
       <Text italic bold={focused} dimColor={!focused} color={focused ? color : undefined} inverse={focused}>
@@ -347,7 +347,7 @@ export function CompanionFloatingBubble() {
   const t4 = tick >= BUBBLE_SHOW - FADE_WINDOW;
   let t5;
   if ($[5] !== reaction || $[6] !== t4) {
-    t5 = <SpeechBubble text={reaction} color={RARITY_COLORS[companion.rarity]} fading={t4} tail="down" />;
+    t5 = <SpeechBubble text={reaction} color={companion.color ?? RARITY_COLORS[companion.rarity]} fading={t4} tail="down" />;
     $[5] = reaction;
     $[6] = t4;
     $[7] = t5;
