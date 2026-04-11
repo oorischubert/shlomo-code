@@ -90,8 +90,8 @@ function extractRecentTurnContext(messages: Message[]): string | undefined {
 }
 
 const CHATTINESS_INSTRUCTIONS: Record<Chattiness, string> = {
-  quiet: 'You are very shy and rarely speak up. Only react to something truly remarkable or hilarious. Silence is your default — most things are not worth commenting on.',
-  normal: 'You react when something is interesting, funny, or noteworthy. You are happy to stay quiet when nothing catches your eye.',
+  quiet: 'You are on the shy side. You prefer to stay quiet, but you do speak up when something genuinely catches your attention.',
+  normal: 'You react fairly often — whenever something is interesting, funny, surprising, or just worth a little comment. You don\'t need a big reason to chime in.',
   chatty: 'You are more talkative than most. You like to chime in when something catches your eye, but you still skip the boring stuff.',
 }
 
@@ -141,6 +141,9 @@ export async function fireCompanionObserver(
   const turnContext = extractRecentTurnContext(messages)
   if (!turnContext) return
 
+  // Strip conversation context — reaction prompt is self-contained.
+  const lightParams = { ...cacheSafeParams, forkContextMessages: [] }
+
   const thisGeneration = ++generationCounter
   inFlight = true
 
@@ -149,7 +152,7 @@ export async function fireCompanionObserver(
 
     const result = await runForkedAgent({
       promptMessages: [createUserMessage({ content: prompt })],
-      cacheSafeParams,
+      cacheSafeParams: lightParams,
       canUseTool: async () => ({ behavior: 'deny', message: 'no tools', decisionReason: { type: 'mode' as const, mode: 'deny' as any } }),
       querySource: 'buddy_reaction',
       forkLabel: 'buddy_reaction',

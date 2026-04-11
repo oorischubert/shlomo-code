@@ -134,6 +134,16 @@ export async function hatchCompanion(
   return stored
 }
 
+// Timeout helper — races a promise against a deadline
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | undefined> {
+  return Promise.race([
+    promise,
+    new Promise<undefined>(resolve => setTimeout(() => resolve(undefined), ms)),
+  ])
+}
+
+const HATCH_TIMEOUT_MS = 10_000
+
 async function generateSoul(
   toolUseContext: ToolUseContext,
   species: string,
@@ -148,17 +158,27 @@ async function generateSoul(
   const seed = Math.floor(Math.random() * 1e9)
   const prompt = buildHatchPrompt(species, 'common', seed)
 
+  // Strip conversation context — hatch is self-contained and doesn't need
+  // the parent's message history. Without this, the model re-processes the
+  // entire conversation just to generate a name, which is very slow.
+  const lightParams = { ...cacheSafeParams, forkContextMessages: [] }
+
   try {
-    const result = await runForkedAgent({
+    const result = await withTimeout(runForkedAgent({
       promptMessages: [createUserMessage({ content: prompt })],
-      cacheSafeParams,
+      cacheSafeParams: lightParams,
       canUseTool: async () => ({ behavior: 'deny', message: 'no tools', decisionReason: { type: 'mode' as const, mode: 'deny' as any } }),
       querySource: 'buddy_hatch',
       forkLabel: 'buddy_hatch',
       maxTurns: 1,
       skipCacheWrite: true,
       skipTranscript: true,
-    })
+    }), HATCH_TIMEOUT_MS)
+
+    if (!result) {
+      logForDebugging('Buddy hatch: timed out, using fallback')
+      return randomFallback(chattiness)
+    }
 
     const lastMsg = getLastAssistantMessage(result.messages)
     if (lastMsg) {
@@ -170,7 +190,7 @@ async function generateSoul(
       }
 
       logForDebugging(`Buddy hatch: first attempt failed validation, retrying`)
-      return await repairAttempt(cacheSafeParams, text, chattiness)
+      return await repairAttempt(lightParams, text, chattiness)
     }
   } catch (err) {
     logForDebugging(`Buddy hatch: model call failed: ${err}`)

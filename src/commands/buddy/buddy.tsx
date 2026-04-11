@@ -120,11 +120,18 @@ function handleKill(
   onDone: LocalJSXCommandOnDone,
   context: ToolUseContext & LocalJSXCommandContext,
 ): null {
-  const companion = getCompanion()
-  const name = companion?.name ?? 'Companion'
+  const config = getGlobalConfig()
 
-  saveGlobalConfig(config => {
-    const { companion: _removed, ...rest } = config
+  if (!config.companion) {
+    onDone('No buddy to destroy...', { display: 'system' })
+    return null
+  }
+
+  const companion = getCompanion()
+  const name = companion?.name ?? 'Buddy'
+
+  saveGlobalConfig(cfg => {
+    const { companion: _removed, ...rest } = cfg
     return { ...rest, companionMuted: false }
   })
 
