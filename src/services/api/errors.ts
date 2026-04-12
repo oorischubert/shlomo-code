@@ -156,6 +156,14 @@ export function isMediaSizeError(raw: string): boolean {
   )
 }
 
+export function isVisionModelMismatchError(raw: string): boolean {
+  const normalized = raw.toLowerCase()
+  return (
+    normalized.includes('contains images') &&
+    normalized.includes('does not support vision inputs')
+  )
+}
+
 /**
  * Message-level predicate: is this assistant message a media-size rejection?
  * Parallel to isPromptTooLongMessage. Checks errorDetails (the raw API error
@@ -167,6 +175,14 @@ export function isMediaSizeErrorMessage(msg: AssistantMessage): boolean {
     msg.isApiErrorMessage === true &&
     msg.errorDetails !== undefined &&
     isMediaSizeError(msg.errorDetails)
+  )
+}
+
+export function isVisionModelMismatchMessage(msg: AssistantMessage): boolean {
+  return (
+    msg.isApiErrorMessage === true &&
+    msg.errorDetails !== undefined &&
+    isVisionModelMismatchError(msg.errorDetails)
   )
 }
 export const CREDIT_BALANCE_TOO_LOW_ERROR_MESSAGE = 'Credit balance is too low'
@@ -629,6 +645,19 @@ export function getAssistantMessageFromError(
 
   // Check for image size errors (e.g., "image exceeds 5 MB maximum: 5316852 bytes > 5242880 bytes")
   if (
+    error instanceof Error &&
+    isVisionModelMismatchError(error.message)
+  ) {
+    return createAssistantAPIErrorMessage({
+      content: getIsNonInteractiveSession()
+        ? 'The selected model does not support images in this conversation. Switch to a vision-capable model or continue without images.'
+        : 'The selected model does not support images in this conversation. Run /model to switch to a vision-capable model, or continue without images.',
+      error: 'invalid_request',
+      errorDetails: error.message,
+    })
+  }
+
+  if (
     error instanceof APIError &&
     error.status === 400 &&
     error.message.includes('image exceeds') &&
@@ -1049,6 +1078,10 @@ export function classifyAPIError(error: unknown): string {
   }
 
   // Image size errors
+  if (error instanceof Error && isVisionModelMismatchError(error.message)) {
+    return 'vision_unsupported'
+  }
+
   if (
     error instanceof APIError &&
     error.status === 400 &&

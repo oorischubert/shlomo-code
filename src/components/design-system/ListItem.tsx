@@ -26,7 +26,7 @@ type ListItemProps = {
   /**
    * Optional description text displayed below the main content.
    */
-  description?: string;
+  description?: ReactNode;
 
   /**
    * Show a down arrow indicator instead of pointer (for scroll hints).

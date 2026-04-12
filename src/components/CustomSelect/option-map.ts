@@ -4,7 +4,7 @@ import type { OptionWithDescription } from './select.js'
 type OptionMapItem<T> = {
   label: ReactNode
   value: T
-  description?: string
+  description?: ReactNode
   previous: OptionMapItem<T> | undefined
   next: OptionMapItem<T> | undefined
   index: number

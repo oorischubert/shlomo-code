@@ -8,8 +8,9 @@ import { useIsInsideModal } from '../../context/modalContext.js';
 import { Box, Text, useTheme } from '../../ink.js';
 import { type AppState, useAppState } from '../../state/AppState.js';
 import { getCwd } from '../../utils/cwd.js';
+import { SHLOMO_TUI_VERSION_LABEL } from '../../utils/displayVersion.js';
 import { getCurrentSessionTitle } from '../../utils/sessionStorage.js';
-import { buildAccountProperties, buildAPIProviderProperties, buildIDEProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelDisplayLabel, type Property } from '../../utils/status.js';
+import { buildAccountProperties, buildAPIProviderProperties, buildIDEProperties, buildInstallationDiagnostics, buildInstallationHealthDiagnostics, buildMcpProperties, buildMemoryDiagnostics, buildSandboxProperties, buildSettingSourcesProperties, type Diagnostic, getModelCapabilitiesLabel, getModelDisplayLabel, type Property } from '../../utils/status.js';
 import type { ThemeName } from '../../utils/theme.js';
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js';
 type Props = {
@@ -22,7 +23,7 @@ function buildPrimarySection(): Property[] {
   const nameValue = customTitle ?? <Text dimColor>/rename to add a name</Text>;
   return [{
     label: 'Version',
-    value: MACRO.VERSION
+    value: SHLOMO_TUI_VERSION_LABEL
   }, {
     label: 'Session name',
     value: nameValue
@@ -46,10 +47,18 @@ function buildSecondarySection({
   context: LocalJSXCommandContext;
 }): Property[] {
   const modelLabel = getModelDisplayLabel(mainLoopModel);
-  return [{
+  const capabilitiesLabel = getModelCapabilitiesLabel(mainLoopModel);
+  const modelProperties: Property[] = [{
     label: 'Model',
     value: modelLabel
-  }, ...buildIDEProperties(mcp.clients, context.options.ideInstallationStatus, theme), ...buildMcpProperties(mcp.clients, theme), ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
+  }];
+  if (capabilitiesLabel) {
+    modelProperties.push({
+    label: 'Capabilities',
+    value: capabilitiesLabel
+    });
+  }
+  return [...modelProperties, ...buildIDEProperties(mcp.clients, context.options.ideInstallationStatus, theme), ...buildMcpProperties(mcp.clients, theme), ...buildSandboxProperties(), ...buildSettingSourcesProperties()];
 }
 export async function buildDiagnostics(): Promise<Diagnostic[]> {
   return [...(await buildInstallationDiagnostics()), ...(await buildInstallationHealthDiagnostics()), ...(await buildMemoryDiagnostics())];

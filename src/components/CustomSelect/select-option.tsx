@@ -20,7 +20,7 @@ export type SelectOptionProps = {
   /**
    * Optional description to display below the label.
    */
-  readonly description?: string;
+  readonly description?: ReactNode;
 
   /**
    * Determines if the down arrow should be shown.

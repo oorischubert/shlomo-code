@@ -9,7 +9,10 @@ import {
   isAutoCompactEnabled,
   type AutoCompactTrackingState,
 } from './services/compact/autoCompact.js'
-import { buildPostCompactMessages } from './services/compact/compact.js'
+import {
+  buildPostCompactMessages,
+  stripImagesFromMessages,
+} from './services/compact/compact.js'
 /* eslint-disable @typescript-eslint/no-require-imports */
 const reactiveCompact = feature('REACTIVE_COMPACT')
   ? (require('./services/compact/reactiveCompact.js') as typeof import('./services/compact/reactiveCompact.js'))
@@ -39,6 +42,7 @@ import type {
 import { logError } from './utils/log.js'
 import {
   PROMPT_TOO_LONG_ERROR_MESSAGE,
+  isVisionModelMismatchMessage,
   isPromptTooLongMessage,
 } from './services/api/errors.js'
 import { logAntError, logForDebugging } from './utils/debug.js'
@@ -234,6 +238,57 @@ export async function* query(
     notifyCommandLifecycle(uuid, 'completed')
   }
   return terminal
+}
+
+function userMessageHasMedia(message: UserMessage): boolean {
+  const content = message.message.content
+  if (!Array.isArray(content)) {
+    return false
+  }
+
+  return content.some(block => {
+    if (block.type === 'image' || block.type === 'document') {
+      return true
+    }
+
+    return (
+      block.type === 'tool_result' &&
+      Array.isArray(block.content) &&
+      block.content.some(
+        item => item.type === 'image' || item.type === 'document',
+      )
+    )
+  })
+}
+
+function shouldRetryWithoutHistoricalImages(
+  messages: readonly Message[],
+): boolean {
+  let latestUserIndex = -1
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]?.type === 'user') {
+      latestUserIndex = i
+      break
+    }
+  }
+
+  if (latestUserIndex === -1) {
+    return false
+  }
+
+  const latestUserMessage = messages[latestUserIndex] as UserMessage
+  if (userMessageHasMedia(latestUserMessage)) {
+    return false
+  }
+
+  for (let i = 0; i < latestUserIndex; i++) {
+    const message = messages[i]
+    if (message?.type === 'user' && userMessageHasMedia(message)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 async function* queryLoop(
@@ -615,6 +670,8 @@ async function* queryLoop(
     // it predates the experiment and is already the control-arm baseline.
     const mediaRecoveryEnabled =
       reactiveCompact?.isReactiveCompactEnabled() ?? false
+    const canRetryWithoutHistoricalImages =
+      shouldRetryWithoutHistoricalImages(messagesForQuery)
     let attemptWithFallback = true
 
     queryCheckpoint('query_api_loop_start')
@@ -782,6 +839,13 @@ async function* queryLoop(
             if (
               mediaRecoveryEnabled &&
               reactiveCompact?.isWithheldMediaSizeError(message)
+            ) {
+              withheld = true
+            }
+            if (
+              canRetryWithoutHistoricalImages &&
+              message.type === 'assistant' &&
+              isVisionModelMismatchMessage(message)
             ) {
               withheld = true
             }
@@ -1050,6 +1114,10 @@ async function* queryLoop(
       const isWithheldMedia =
         mediaRecoveryEnabled &&
         reactiveCompact?.isWithheldMediaSizeError(lastMessage)
+      const isWithheldVisionMismatch =
+        canRetryWithoutHistoricalImages &&
+        lastMessage?.type === 'assistant' &&
+        isVisionModelMismatchMessage(lastMessage)
       if (isWithheld413) {
         // First: drain all staged context-collapses. Gated on the PREVIOUS
         // transition not being collapse_drain_retry — if we already drained
@@ -1083,6 +1151,23 @@ async function* queryLoop(
             continue
           }
         }
+      }
+      if (isWithheldVisionMismatch) {
+        const strippedMessages = stripImagesFromMessages(messagesForQuery)
+        const next: State = {
+          messages: strippedMessages,
+          toolUseContext,
+          autoCompactTracking: tracking,
+          maxOutputTokensRecoveryCount,
+          hasAttemptedReactiveCompact,
+          maxOutputTokensOverride: undefined,
+          pendingToolUseSummary: undefined,
+          stopHookActive: undefined,
+          turnCount,
+          transition: { reason: 'reactive_compact_retry' },
+        }
+        state = next
+        continue
       }
       if ((isWithheld413 || isWithheldMedia) && reactiveCompact) {
         const compacted = await reactiveCompact.tryReactiveCompact({

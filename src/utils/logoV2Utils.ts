@@ -13,6 +13,7 @@ import { getStoredChangelogFromMemory, parseChangelog } from './releaseNotes.js'
 import { gt } from './semver.js'
 import { loadMessageLogs } from './sessionStorage.js'
 import { getInitialSettings } from './settings/settings.js'
+import { SHLOMO_TUI_VERSION } from './displayVersion.js'
 import { getLmStudioApiKey, getLmStudioBaseUrl } from './lmStudio.js'
 
 // Layout constants
@@ -246,7 +247,7 @@ export function getLogoDisplayData(): {
   billingType: string
   agentName: string | undefined
 } {
-  const version = process.env.DEMO_VERSION ?? MACRO.VERSION
+  const version = process.env.DEMO_VERSION ?? SHLOMO_TUI_VERSION
   const serverUrl = getDirectConnectServerUrl()
   const anthropicBaseUrl = getLmStudioBaseUrl()
   const isLocalLmStudio =

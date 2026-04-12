@@ -11,12 +11,14 @@ import { useKeybindings } from '../keybindings/useKeybinding.js';
 import { useAppState, useSetAppState } from '../state/AppState.js';
 import { convertEffortValueToLevel, type EffortLevel, getDefaultEffortForModel, modelSupportsEffort, modelSupportsMaxEffort, resolvePickerEffortPersistence, toPersistableEffort } from '../utils/effort.js';
 import { getDefaultMainLoopModel, type ModelSetting, modelDisplayString, parseUserSpecifiedModel } from '../utils/model/model.js';
+import { formatDisplayModelCapabilities } from '../utils/model/modelCapabilitiesDisplay.js';
 import { getModelOptions } from '../utils/model/modelOptions.js';
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js';
 import { ConfigurableShortcutHint } from './ConfigurableShortcutHint.js';
 import { Select } from './CustomSelect/index.js';
 import { Byline } from './design-system/Byline.js';
 import { KeyboardShortcutHint } from './design-system/KeyboardShortcutHint.js';
+import { ModelCapabilityBadges } from './ModelCapabilityBadges.js';
 import { Pane } from './design-system/Pane.js';
 import { effortLevelToSymbol } from './EffortIndicator.js';
 export type Props = {
@@ -138,10 +140,10 @@ export function ModelPicker(t0) {
   const visibleCount = Math.min(10, selectOptions.length);
   const hiddenCount = Math.max(0, selectOptions.length - visibleCount);
   let t7;
-  if ($[17] !== focusedValue || $[18] !== selectOptions) {
-    t7 = selectOptions.find(opt_1 => opt_1.value === focusedValue)?.label;
+  if ($[17] !== focusedValue || $[18] !== optionsWithInitial) {
+    t7 = optionsWithInitial.find(opt_1 => (opt_1.value === null ? NO_PREFERENCE : opt_1.value) === focusedValue)?.label;
     $[17] = focusedValue;
-    $[18] = selectOptions;
+    $[18] = optionsWithInitial;
     $[19] = t7;
   } else {
     t7 = $[19];
@@ -390,8 +392,11 @@ export function ModelPicker(t0) {
 }
 function _temp4() {}
 function _temp3(opt_0) {
+  const model = resolveOptionModel(opt_0.value === null ? NO_PREFERENCE : opt_0.value);
+  const capabilities = formatDisplayModelCapabilities(model ?? null);
   return {
     ...opt_0,
+    description: capabilities ? <><ModelCapabilityBadges model={model ?? null} /> · {opt_0.description}</> : opt_0.description,
     value: opt_0.value === null ? NO_PREFERENCE : opt_0.value
   };
 }

@@ -52,15 +52,30 @@ function extractRecentTurnContext(messages: Message[]): string | undefined {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i]!
     if (msg.type === 'assistant' && !lastAssistantText) {
-      const text = extractTextContent(msg.message!.content as any, '\n')
-      if (text) {
-        lastAssistantText = text.length > 300 ? text.slice(0, 300) + '…' : text
-      }
       const content = msg.message!.content as any[]
       if (Array.isArray(content)) {
-        const toolUses = content.filter((b: any) => b.type === 'tool_use')
-        if (toolUses.length > 0) {
-          toolSummary = `[Used ${toolUses.length} tool(s): ${toolUses.map((t: any) => t.name).join(', ')}]`
+        const textParts: string[] = []
+        const toolNames: string[] = []
+        for (const b of content) {
+          if (b.type === 'text') {
+            textParts.push(b.text)
+          } else if (b.type === 'image' || b.type === 'image_url' || b.source?.type === 'base64') {
+            textParts.push('[image]')
+          } else if (b.type === 'tool_use') {
+            toolNames.push(b.name)
+          }
+        }
+        const text = textParts.join('\n')
+        if (text) {
+          lastAssistantText = text.length > 300 ? text.slice(0, 300) + '…' : text
+        }
+        if (toolNames.length > 0) {
+          toolSummary = `[Used ${toolNames.length} tool(s): ${toolNames.join(', ')}]`
+        }
+      } else {
+        const text = extractTextContent(msg.message!.content as any, '\n')
+        if (text) {
+          lastAssistantText = text.length > 300 ? text.slice(0, 300) + '…' : text
         }
       }
     } else if (msg.type === 'user' && !lastUserText) {
@@ -69,10 +84,15 @@ function extractRecentTurnContext(messages: Message[]): string | undefined {
         if (typeof content === 'string') {
           lastUserText = content.length > 200 ? content.slice(0, 200) + '…' : content
         } else if (Array.isArray(content)) {
-          const text = content
-            .filter((b: any) => b.type === 'text')
-            .map((b: any) => b.text)
-            .join(' ')
+          const parts: string[] = []
+          for (const b of content) {
+            if (b.type === 'text') {
+              parts.push(b.text)
+            } else if (b.type === 'image' || b.type === 'image_url' || b.source?.type === 'base64') {
+              parts.push('[image]')
+            }
+          }
+          const text = parts.join(' ')
           lastUserText = text.length > 200 ? text.slice(0, 200) + '…' : text
         }
       }

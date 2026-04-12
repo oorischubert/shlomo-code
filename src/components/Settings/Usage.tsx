@@ -17,6 +17,7 @@ import {
   type Utilization,
 } from '../../services/api/usage.js'
 import {
+  fetchLmStudioModels,
   getCachedLmStudioModel,
 } from '../../services/lmStudio/modelManagement.js'
 import { formatResetText } from '../../utils/format.js'
@@ -106,7 +107,57 @@ type ContextUsageSectionProps = {
   model: string
   contextLimit: number
   maxContextWindow?: number
-  isLoaded: boolean
+  sourceLabel: string
+}
+
+function getPositiveInteger(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? Math.trunc(value)
+    : undefined
+}
+
+function getContextWindowDetails(model: string): {
+  contextLimit: number
+  maxContextWindow?: number
+  sourceLabel: string
+} {
+  const lmStudioModel = getCachedLmStudioModel(model)
+  const loadedContextWindow = lmStudioModel?.loaded_instances
+    ?.map(instance => getPositiveInteger(instance.config?.context_length))
+    .find((value): value is number => typeof value === 'number')
+  const modelContextWindow = getPositiveInteger(lmStudioModel?.context_length)
+  const maxContextWindow = getPositiveInteger(lmStudioModel?.max_context_length)
+  const resolvedContextWindow = getContextWindowForModel(model)
+
+  if (loadedContextWindow) {
+    return {
+      contextLimit: loadedContextWindow,
+      maxContextWindow,
+      sourceLabel: 'loaded LM Studio limit',
+    }
+  }
+
+  if (modelContextWindow) {
+    return {
+      contextLimit: modelContextWindow,
+      maxContextWindow,
+      sourceLabel: 'model limit',
+    }
+  }
+
+  if (maxContextWindow) {
+    return {
+      contextLimit: maxContextWindow,
+      maxContextWindow,
+      sourceLabel: 'model max',
+    }
+  }
+
+  return {
+    contextLimit: resolvedContextWindow,
+    maxContextWindow,
+    sourceLabel: 'configured limit',
+  }
 }
 
 function formatTokenCount(tokens: number): string {
@@ -117,9 +168,8 @@ function ContextUsageSection({
   model,
   contextLimit,
   maxContextWindow,
-  isLoaded,
+  sourceLabel,
 }: ContextUsageSectionProps): React.ReactNode {
-  const sourceLabel = isLoaded ? 'loaded LM Studio limit' : 'model limit'
   const modelMaxLabel =
     typeof maxContextWindow === 'number' && maxContextWindow > 0
       ? formatTokenCount(maxContextWindow)
@@ -216,11 +266,9 @@ export function Usage({ context: _context }: Props): React.ReactNode {
   const { columns } = useTerminalSize()
   const availableWidth = Math.max(20, columns - 2)
   const maxWidth = Math.min(availableWidth, 80)
-  const lmStudioModel = getCachedLmStudioModel(mainLoopModel)
-  const contextLimit =
-    lmStudioModel?.loaded_instances?.[0]?.config?.context_length ??
-    lmStudioModel?.max_context_length ??
-    getContextWindowForModel(mainLoopModel)
+  const [contextWindowDetails, setContextWindowDetails] = useState(() =>
+    getContextWindowDetails(mainLoopModel),
+  )
 
   const loadUtilization = React.useCallback(async () => {
     setIsLoading(true)
@@ -249,6 +297,27 @@ export function Usage({ context: _context }: Props): React.ReactNode {
   useEffect(() => {
     void loadUtilization()
   }, [loadUtilization])
+
+  useEffect(() => {
+    let isCancelled = false
+    setContextWindowDetails(getContextWindowDetails(mainLoopModel))
+
+    void (async () => {
+      try {
+        await fetchLmStudioModels()
+      } catch {
+        // Keep the best cached metadata already available in the UI.
+      }
+
+      if (!isCancelled) {
+        setContextWindowDetails(getContextWindowDetails(mainLoopModel))
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [mainLoopModel])
 
   useKeybinding(
     'settings:retry',
@@ -292,9 +361,9 @@ export function Usage({ context: _context }: Props): React.ReactNode {
     <Box flexDirection="column" gap={1} width="100%">
       <ContextUsageSection
         model={mainLoopModel}
-        contextLimit={contextLimit ?? 0}
-        maxContextWindow={lmStudioModel?.max_context_length}
-        isLoaded={(lmStudioModel?.loaded_instances?.length ?? 0) > 0}
+        contextLimit={contextWindowDetails.contextLimit}
+        maxContextWindow={contextWindowDetails.maxContextWindow}
+        sourceLabel={contextWindowDetails.sourceLabel}
       />
 
       {isLoading ? <Text dimColor>Loading plan usage…</Text> : null}

@@ -1,11 +1,12 @@
 import type { Command, LocalCommandCall } from '../types/command.js'
+import { SHLOMO_TUI_VERSION } from '../utils/displayVersion.js'
 
 const call: LocalCommandCall = async () => {
   return {
     type: 'text',
     value: MACRO.BUILD_TIME
-      ? `${MACRO.VERSION} (built ${MACRO.BUILD_TIME})`
-      : MACRO.VERSION,
+      ? `${SHLOMO_TUI_VERSION} (built ${MACRO.BUILD_TIME})`
+      : SHLOMO_TUI_VERSION,
   }
 }
 
