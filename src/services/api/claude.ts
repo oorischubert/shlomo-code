@@ -1739,6 +1739,7 @@ async function* queryModel(
   let research: unknown = undefined
   let isFastModeRequest = isFastMode // Keep separate state as it may change if falling back
   let isAdvisorInProgress = false
+  let lmStudioTokensPerSecond: number | undefined
 
   try {
     queryCheckpoint('query_client_creation_start')
@@ -1787,14 +1788,25 @@ async function* queryModel(
         // since we handle tool input accumulation ourselves
         // biome-ignore lint/plugin: main conversation loop handles attribution separately
         const result = isLmStudioBackend()
-          ? await anthropic.beta.messages
-              .create(params, {
-                signal,
-                ...(clientRequestId && {
-                  headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
-                }),
-              })
-              .withResponse()
+          ? await (async () => {
+              const lmStudioRequestStart = Date.now()
+              const response = await anthropic.beta.messages
+                .create(params, {
+                  signal,
+                  ...(clientRequestId && {
+                    headers: { [CLIENT_REQUEST_ID_HEADER]: clientRequestId },
+                  }),
+                })
+                .withResponse()
+              const durationMs = Date.now() - lmStudioRequestStart
+              const outputTokens = (response.data as BetaMessage).usage
+                ?.output_tokens
+              lmStudioTokensPerSecond =
+                durationMs > 0 && outputTokens && outputTokens > 0
+                  ? outputTokens / (durationMs / 1000)
+                  : undefined
+              return response
+            })()
           : await anthropic.beta.messages
               .create(
                 { ...params, stream: true },
@@ -2277,7 +2289,9 @@ async function* queryModel(
         yield {
           type: 'stream_event',
           event: part,
-          ...(part.type === 'message_start' ? { ttftMs } : undefined),
+          ...(part.type === 'message_start'
+            ? { ttftMs, lmStudioTokensPerSecond }
+            : undefined),
         }
       }
       // Clear the idle timeout watchdog now that the stream loop has exited

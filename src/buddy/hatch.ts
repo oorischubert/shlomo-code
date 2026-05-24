@@ -52,8 +52,8 @@ function safeParseJSON(text: string): unknown {
 // Pool of goofy names — picked at random, not per-species.
 const FALLBACK_NAMES = [
   'Quacksworth', 'Honkbert', 'Blobothy', 'Sir Nibbles', 'Glorp',
-  'Waffles', 'Pickles', 'Sprongle', 'Chompsky', 'Biscuit',
-  'Noodlebutt', 'Sprout', 'Gizmo', 'Muffin', 'Zamboni',
+  'Waffles', 'Pickles', 'Sprongle', 'Chompsky', 'Biscuit', 'Shira',
+  'Noodlebutt', 'Sprout', 'Gizmo', 'Beast', 'Muffin', 'Zamboni',
   'Turbo', 'Crouton', 'Flapjack', 'Wobbles', 'Socks',
   'Nugget', 'Dingus', 'Clonk', 'Beanbag', 'Scrambles',
   'Pudding', 'Zonk', 'Gremlin', 'Dumpling', 'Tofu',

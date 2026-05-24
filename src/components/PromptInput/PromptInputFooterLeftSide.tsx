@@ -31,7 +31,7 @@ import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js';
 import { Byline } from '../design-system/Byline.js';
 import { useTerminalSize } from '../../hooks/useTerminalSize.js';
 import { useTasksV2 } from '../../hooks/useTasksV2.js';
-import { formatDuration } from '../../utils/format.js';
+import { formatDuration, formatNumber } from '../../utils/format.js';
 import { VoiceWarmupHint } from './VoiceIndicator.js';
 import { useVoiceEnabled } from '../../hooks/useVoiceEnabled.js';
 import { useVoiceState } from '../../context/voice.js';
@@ -59,6 +59,7 @@ type Props = {
   toolPermissionContext: ToolPermissionContext;
   suppressHint: boolean;
   isLoading: boolean;
+  lastResponseTokensPerSecond?: number | null;
   showMemoryTypeSelector?: boolean;
   tasksSelected: boolean;
   teamsSelected: boolean;
@@ -125,7 +126,7 @@ function ProactiveCountdown() {
   return t4;
 }
 export function PromptInputFooterLeftSide(t0) {
-  const $ = _c(27);
+  const $ = _c(28);
   const {
     exitMessage,
     vimMode,
@@ -133,6 +134,7 @@ export function PromptInputFooterLeftSide(t0) {
     toolPermissionContext,
     suppressHint,
     isLoading,
+    lastResponseTokensPerSecond,
     tasksSelected,
     teamsSelected,
     tmuxSelected,
@@ -196,30 +198,31 @@ export function PromptInputFooterLeftSide(t0) {
   }
   const t4 = !suppressHint && !showVim;
   let t5;
-  if ($[13] !== isLoading || $[14] !== mode || $[15] !== onOpenTasksDialog || $[16] !== t4 || $[17] !== tasksSelected || $[18] !== teammateFooterIndex || $[19] !== teamsSelected || $[20] !== tmuxSelected || $[21] !== toolPermissionContext) {
-    t5 = <ModeIndicator mode={mode} toolPermissionContext={toolPermissionContext} showHint={t4} isLoading={isLoading} tasksSelected={tasksSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} onOpenTasksDialog={onOpenTasksDialog} />;
+  if ($[13] !== isLoading || $[14] !== lastResponseTokensPerSecond || $[15] !== mode || $[16] !== onOpenTasksDialog || $[17] !== t4 || $[18] !== tasksSelected || $[19] !== teammateFooterIndex || $[20] !== teamsSelected || $[21] !== tmuxSelected || $[22] !== toolPermissionContext) {
+    t5 = <ModeIndicator mode={mode} toolPermissionContext={toolPermissionContext} showHint={t4} isLoading={isLoading} lastResponseTokensPerSecond={lastResponseTokensPerSecond} tasksSelected={tasksSelected} teamsSelected={teamsSelected} teammateFooterIndex={teammateFooterIndex} tmuxSelected={tmuxSelected} onOpenTasksDialog={onOpenTasksDialog} />;
     $[13] = isLoading;
-    $[14] = mode;
-    $[15] = onOpenTasksDialog;
-    $[16] = t4;
-    $[17] = tasksSelected;
-    $[18] = teammateFooterIndex;
-    $[19] = teamsSelected;
-    $[20] = tmuxSelected;
-    $[21] = toolPermissionContext;
-    $[22] = t5;
+    $[14] = lastResponseTokensPerSecond;
+    $[15] = mode;
+    $[16] = onOpenTasksDialog;
+    $[17] = t4;
+    $[18] = tasksSelected;
+    $[19] = teammateFooterIndex;
+    $[20] = teamsSelected;
+    $[21] = tmuxSelected;
+    $[22] = toolPermissionContext;
+    $[23] = t5;
   } else {
-    t5 = $[22];
+    t5 = $[23];
   }
   let t6;
-  if ($[23] !== t2 || $[24] !== t3 || $[25] !== t5) {
+  if ($[24] !== t2 || $[25] !== t3 || $[26] !== t5) {
     t6 = <Box justifyContent="flex-start" gap={1}>{t2}{t3}{t5}</Box>;
-    $[23] = t2;
-    $[24] = t3;
-    $[25] = t5;
-    $[26] = t6;
+    $[24] = t2;
+    $[25] = t3;
+    $[26] = t5;
+    $[27] = t6;
   } else {
-    t6 = $[26];
+    t6 = $[27];
   }
   return t6;
 }
@@ -228,6 +231,7 @@ type ModeIndicatorProps = {
   toolPermissionContext: ToolPermissionContext;
   showHint: boolean;
   isLoading: boolean;
+  lastResponseTokensPerSecond?: number | null;
   tasksSelected: boolean;
   teamsSelected: boolean;
   tmuxSelected: boolean;
@@ -239,6 +243,7 @@ function ModeIndicator({
   toolPermissionContext,
   showHint,
   isLoading,
+  lastResponseTokensPerSecond,
   tasksSelected,
   teamsSelected,
   tmuxSelected,
@@ -407,8 +412,14 @@ function ModeIndicator({
   // below still treat "pill present" as non-empty.
   const tasksPart = hasBackgroundTasks && !hasTeammatePills && !shouldHideTasksFooter(tasks, showSpinnerTree) ? <BackgroundTaskStatus tasksSelected={tasksSelected} isViewingTeammate={isViewingTeammate} teammateFooterIndex={teammateFooterIndex} isLeaderIdle={!isLoading} onOpenDialog={onOpenTasksDialog} /> : null;
   if (parts.length === 0 && !tasksPart && !modePart && showHint) {
+    const speedText =
+      typeof lastResponseTokensPerSecond === 'number' &&
+      Number.isFinite(lastResponseTokensPerSecond) &&
+      lastResponseTokensPerSecond > 0
+        ? `${formatNumber(Math.round(lastResponseTokensPerSecond))} tok/s · `
+        : '';
     parts.push(<Text dimColor key="shortcuts-hint">
-        ? for shortcuts
+        {speedText}? for shortcuts
       </Text>);
   }
 

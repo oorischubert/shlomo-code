@@ -2944,7 +2944,10 @@ export function handleMessageFromStream(
   onStreamingThinking?: (
     f: (current: StreamingThinking | null) => StreamingThinking | null,
   ) => void,
-  onApiMetrics?: (metrics: { ttftMs: number }) => void,
+  onApiMetrics?: (metrics: {
+    ttftMs: number
+    lmStudioTokensPerSecond?: number
+  }) => void,
   onStreamingText?: (f: (current: string | null) => string | null) => void,
 ): void {
   if (
@@ -2988,7 +2991,14 @@ export function handleMessageFromStream(
 
   if (message.event.type === 'message_start') {
     if (message.ttftMs != null) {
-      onApiMetrics?.({ ttftMs: message.ttftMs })
+      const lmStudioTokensPerSecond =
+        typeof message.lmStudioTokensPerSecond === 'number'
+          ? message.lmStudioTokensPerSecond
+          : undefined
+      onApiMetrics?.({
+        ttftMs: message.ttftMs,
+        lmStudioTokensPerSecond,
+      })
     }
   }
 
