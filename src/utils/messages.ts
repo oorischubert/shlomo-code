@@ -1,5 +1,10 @@
 import { feature } from 'bun:bundle'
 import type { BetaUsage as Usage } from '@anthropic-ai/sdk/resources/beta/messages/messages.mjs'
+import {
+  augmentLmStudioLoadFailure,
+  probeVramSync,
+} from '../services/lmStudio/loadFailureDiagnostics.js'
+import { getCachedLmStudioModelSizeBytes } from '../services/lmStudio/modelManagement.js'
 import type {
   ContentBlock,
   ContentBlockParam,
@@ -443,11 +448,23 @@ export function createAssistantAPIErrorMessage({
   error?: SDKAssistantMessageError
   errorDetails?: string
 }): AssistantMessage {
+  // LM Studio reports a failed JIT auto-load as a bare "Failed to load model"
+  // with no cause anywhere in the HTTP payload. Attach a local resource
+  // diagnostic so the usual culprit (not enough free VRAM) is visible. Applied
+  // here because every API-error branch funnels through this constructor.
+  const text =
+    content === ''
+      ? NO_CONTENT_MESSAGE
+      : augmentLmStudioLoadFailure(content, {
+          lookupSizeBytes: getCachedLmStudioModelSizeBytes,
+          probeVram: probeVramSync,
+        })
+
   return baseCreateAssistantMessage({
     content: [
       {
         type: 'text' as const,
-        text: content === '' ? NO_CONTENT_MESSAGE : content,
+        text,
       } as BetaContentBlock, // NOTE: citations field is not supported in Bedrock API
     ],
     isApiErrorMessage: true,

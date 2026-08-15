@@ -26,6 +26,7 @@ export type LmStudioModel = {
   key: string
   display_name: string
   loaded_instances: LmStudioModelInstance[]
+  size_bytes?: number
   context_length?: number
   max_context_length?: number
   capabilities?: {
@@ -265,6 +266,10 @@ export function getCachedLmStudioModel(
   model: string,
 ): LmStudioModel | undefined {
   return lmStudioModelCache.get(normalizeModelCacheKey(model))
+}
+
+export function getCachedLmStudioModelSizeBytes(model: string): number | null {
+  return getCachedLmStudioModel(model)?.size_bytes ?? null
 }
 
 export function getCachedLmStudioContextWindow(
