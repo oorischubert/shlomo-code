@@ -3,6 +3,7 @@ import type { BetaUsage as Usage } from '@anthropic-ai/sdk/resources/beta/messag
 import {
   augmentLmStudioLoadFailure,
   probeVramSync,
+  readConfiguredContextLengthSync,
 } from '../services/lmStudio/loadFailureDiagnostics.js'
 import { getCachedLmStudioModelSizeBytes } from '../services/lmStudio/modelManagement.js'
 import type {
@@ -458,6 +459,7 @@ export function createAssistantAPIErrorMessage({
       : augmentLmStudioLoadFailure(content, {
           lookupSizeBytes: getCachedLmStudioModelSizeBytes,
           probeVram: probeVramSync,
+          readConfiguredContextLength: readConfiguredContextLengthSync,
         })
 
   return baseCreateAssistantMessage({

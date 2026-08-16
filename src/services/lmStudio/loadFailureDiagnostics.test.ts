@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   augmentLmStudioLoadFailure,
   buildLoadFailureDiagnostic,
+  parseConfiguredContextLength,
   parseLoadFailureModelKey,
   parseNvidiaSmiVram,
 } from './loadFailureDiagnostics.js'
@@ -38,6 +39,32 @@ describe('parseLoadFailureModelKey', () => {
     expect(
       parseLoadFailureModelKey('Model "qwen/qwen3.8-27b" is already loaded.'),
     ).toBeNull()
+  })
+})
+
+describe('parseConfiguredContextLength', () => {
+  // Real content of LM Studio's per-model default config, which is the only
+  // place the configured context length is recorded.
+  const REAL_CONFIG = JSON.stringify({
+    preset: '',
+    operation: { fields: [] },
+    load: { fields: [{ key: 'llm.load.contextLength', value: 200000 }] },
+  })
+
+  test('reads the configured context length', () => {
+    expect(parseConfiguredContextLength(REAL_CONFIG)).toBe(200000)
+  })
+
+  test('returns null when no context length field is present', () => {
+    expect(
+      parseConfiguredContextLength(
+        JSON.stringify({ load: { fields: [{ key: 'llm.load.gpu', value: 1 }] } }),
+      ),
+    ).toBeNull()
+  })
+
+  test('returns null for malformed json', () => {
+    expect(parseConfiguredContextLength('not json')).toBeNull()
   })
 })
 
@@ -101,20 +128,41 @@ describe('buildLoadFailureDiagnostic', () => {
     expect(result).not.toContain('free')
   })
 
-  test('does not blame VRAM when the model comfortably fits', () => {
+  // When the weights fit but the load still failed, the weights are not the
+  // problem — the KV cache is. This is the "failed to allocate buffer for kv
+  // cache" case, which the HTTP payload never names.
+  const ROOMY_VRAM = {
+    totalBytes: 32607 * 1024 * 1024,
+    usedBytes: 100 * 1024 * 1024,
+    freeBytes: 32507 * 1024 * 1024,
+  }
+
+  test('blames the KV cache when the weights fit but the load still failed', () => {
     const result = buildLoadFailureDiagnostic({
       original: REAL_FAILURE_MESSAGE,
       modelKey: 'qwen/qwen3.8-27b',
       sizeBytes: 23362324550,
-      vram: {
-        totalBytes: 32607 * 1024 * 1024,
-        usedBytes: 100 * 1024 * 1024,
-        freeBytes: 32507 * 1024 * 1024,
-      },
+      vram: ROOMY_VRAM,
     })
 
     expect(result).toContain(REAL_FAILURE_MESSAGE)
+    expect(result).toContain('KV cache')
+    expect(result).toContain('10.0 GiB')
+    expect(result).toContain('context length')
     expect(result).not.toContain('Free VRAM')
+  })
+
+  test('names the configured context length when it is known', () => {
+    const result = buildLoadFailureDiagnostic({
+      original: REAL_FAILURE_MESSAGE,
+      modelKey: 'qwen/qwen3.8-27b',
+      sizeBytes: 23362324550,
+      vram: ROOMY_VRAM,
+      configuredContextLength: 200000,
+    })
+
+    expect(result).toContain('200,000 tokens')
+    expect(result).toContain('KV cache')
   })
 
   test('returns the original message unchanged when model size is unknown', () => {
@@ -144,6 +192,34 @@ describe('augmentLmStudioLoadFailure', () => {
     })
 
     expect(result).toContain('only 10.9 GiB VRAM free')
+  })
+
+  test('names the configured context length end to end', () => {
+    const result = augmentLmStudioLoadFailure(REAL_FAILURE_MESSAGE, {
+      lookupSizeBytes: () => 23362324550,
+      probeVram: () => ({
+        totalBytes: 32607 * 1024 * 1024,
+        usedBytes: 100 * 1024 * 1024,
+        freeBytes: 32507 * 1024 * 1024,
+      }),
+      readConfiguredContextLength: key =>
+        key === 'qwen/qwen3.8-27b' ? 200000 : null,
+    })
+
+    expect(result).toContain('KV cache')
+    expect(result).toContain('200,000 tokens')
+  })
+
+  test('survives a throwing context-length reader', () => {
+    const result = augmentLmStudioLoadFailure(REAL_FAILURE_MESSAGE, {
+      lookupSizeBytes: () => 23362324550,
+      probeVram: () => VRAM,
+      readConfiguredContextLength: () => {
+        throw new Error('unreadable')
+      },
+    })
+
+    expect(result).toContain('21.8 GiB')
   })
 
   test('leaves unrelated errors untouched', () => {

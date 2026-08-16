@@ -1,4 +1,7 @@
 import { execFileSync } from 'node:child_process'
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
 
 const MIB = 1024 * 1024
 const GIB = 1024 * 1024 * 1024
@@ -52,15 +55,37 @@ function formatGiB(bytes: number): string {
   return `${(bytes / GIB).toFixed(1)} GiB`
 }
 
+/**
+ * LM Studio records a model's configured context length only in its per-model
+ * default config; neither the REST API nor the error payload exposes it.
+ */
+export function parseConfiguredContextLength(raw: string): number | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      load?: { fields?: { key?: string; value?: unknown }[] }
+    }
+    const field = parsed.load?.fields?.find(
+      entry => entry.key === 'llm.load.contextLength',
+    )
+    return typeof field?.value === 'number' && field.value > 0
+      ? field.value
+      : null
+  } catch {
+    return null
+  }
+}
+
 export function buildLoadFailureDiagnostic({
   original,
   sizeBytes,
   vram,
+  configuredContextLength = null,
 }: {
   original: string
   modelKey: string
   sizeBytes: number | null
   vram: VramSnapshot | null
+  configuredContextLength?: number | null
 }): string {
   // Cold model cache: we cannot compare against the requirement, but free VRAM
   // is still the fact most likely to explain the failure.
@@ -84,10 +109,49 @@ export function buildLoadFailureDiagnostic({
     ].join('\n')
   }
 
+  // Weights fit but the load still failed, so the weights are not the cause.
+  // The remaining budget is what the KV cache has to fit into, and the KV cache
+  // scales with context length — the usual culprit.
+  if (vram) {
+    const headroom = vram.freeBytes - sizeBytes
+    const contextNote = configuredContextLength
+      ? ` Context is configured for ${configuredContextLength.toLocaleString('en-US')} tokens.`
+      : ''
+    return [
+      original,
+      `  Weights (${formatGiB(sizeBytes)}) fit in ${formatGiB(vram.freeBytes)} free VRAM, ` +
+        `so the KV cache is the likely cause.`,
+      `  Only ${formatGiB(headroom)} remains for it.${contextNote}`,
+      "  Reduce the model's context length in LM Studio.",
+    ].join('\n')
+  }
+
   return [
     original,
     `  Model requires ${formatGiB(sizeBytes)} of VRAM to load.`,
   ].join('\n')
+}
+
+/**
+ * Best-effort read of LM Studio's per-model default config. The path is an
+ * internal LM Studio detail, so every failure degrades to null rather than
+ * surfacing.
+ */
+export function readConfiguredContextLengthSync(
+  modelKey: string,
+): number | null {
+  try {
+    const path = join(
+      homedir(),
+      '.lmstudio',
+      '.internal',
+      'user-concrete-model-default-config',
+      `${modelKey}.json`,
+    )
+    return parseConfiguredContextLength(readFileSync(path, 'utf8'))
+  } catch {
+    return null
+  }
 }
 
 /** Best-effort VRAM probe. Returns null on non-NVIDIA hosts or any failure. */
@@ -117,6 +181,7 @@ export function augmentLmStudioLoadFailure(
   deps: {
     lookupSizeBytes: (modelKey: string) => number | null
     probeVram: () => VramSnapshot | null
+    readConfiguredContextLength?: (modelKey: string) => number | null
   },
 ): string {
   const modelKey = parseLoadFailureModelKey(message)
@@ -138,10 +203,19 @@ export function augmentLmStudioLoadFailure(
     vram = null
   }
 
+  let configuredContextLength: number | null = null
+  try {
+    configuredContextLength =
+      deps.readConfiguredContextLength?.(modelKey) ?? null
+  } catch {
+    configuredContextLength = null
+  }
+
   return buildLoadFailureDiagnostic({
     original: message,
     modelKey,
     sizeBytes,
     vram,
+    configuredContextLength,
   })
 }
