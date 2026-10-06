@@ -12,13 +12,13 @@ dist/
 .bun-build
 
 # Local app settings
-.claude/settings.local.json
+.shlomo/settings.local.json
 
 # Environment files
 .env
 .env.*
 !.env.example
-.claude/settings.local.json
+.shlomo/settings.local.json
 
 # Logs and coverage
 *.log

@@ -2,19 +2,17 @@ import memoize from 'lodash-es/memoize.js'
 import { homedir } from 'os'
 import { join } from 'path'
 
-// Memoized: 150+ callers, many on hot paths. Keyed off SHLOMO_CONFIG_DIR /
-// CLAUDE_CONFIG_DIR so tests that change the env vars get a fresh value
-// without explicit cache.clear.
+// Memoized: 150+ callers, many on hot paths. Keyed off SHLOMO_CONFIG_DIR so
+// tests that change the env var get a fresh value without explicit
+// cache.clear. CLAUDE_CONFIG_DIR is deliberately ignored: it points at Claude
+// Code's config, and shlomo must never read or write that.
 export const getClaudeConfigHomeDir = memoize(
   (): string => {
     return (
-      process.env.SHLOMO_CONFIG_DIR ??
-      process.env.CLAUDE_CONFIG_DIR ??
-      join(homedir(), '.shlomo')
+      process.env.SHLOMO_CONFIG_DIR ?? join(homedir(), '.shlomo')
     ).normalize('NFC')
   },
-  () =>
-    `${process.env.SHLOMO_CONFIG_DIR ?? ''}\u0000${process.env.CLAUDE_CONFIG_DIR ?? ''}`,
+  () => process.env.SHLOMO_CONFIG_DIR ?? '',
 )
 
 export function getTeamsDir(): string {

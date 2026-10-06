@@ -23,7 +23,7 @@ export const getGlobalClaudeFile = memoize((): string => {
 
   const filename = `.shlomo${fileSuffixForOauthConfig()}.json`
   return join(
-    process.env.SHLOMO_CONFIG_DIR || process.env.CLAUDE_CONFIG_DIR || homedir(),
+    process.env.SHLOMO_CONFIG_DIR || homedir(),
     filename,
   )
 })
